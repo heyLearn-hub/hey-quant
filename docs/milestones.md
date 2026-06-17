@@ -121,8 +121,8 @@ Deliverables:
 - Windows Task Scheduler Docker XML template. `Done`
 - Docker deployment documentation. `Done`
 - Docker Compose config validation. `Done on Mac`
-- Local web service available through Docker. `Pending smoke verification on target Windows host`
-- Daily scheduled report and email command through Docker. `Pending smoke verification on target Windows host`
+- Local web service available through Docker. `Done on Mac, pending target Windows verification`
+- Daily scheduled report command through Docker. `Done on Mac, pending target Windows verification`
 
 Acceptance criteria:
 
@@ -133,9 +133,10 @@ Acceptance criteria:
 - `data/`, `outputs/`, and `logs/` persist outside the container.
 - `.env` is loaded at runtime and never baked into the image.
 
-Current blocker:
+Verification notes:
 
-- Local Docker CLI is installed, but Docker Desktop daemon was not running during Mac verification. `docker compose config` passes; `docker compose build` and container smoke tests should be run after Docker Desktop starts or on the Windows host.
+- Mac Docker smoke test passed after Docker Desktop was started: image build succeeded, web service responded on `http://127.0.0.1:8765`, and offline sample report was generated at `outputs/docker_sample_report.html`.
+- Windows Task Scheduler and email delivery still need final verification on the target Windows host.
 
 ## Milestone 5: Strategy And Factor Experiments V1
 

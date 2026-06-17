@@ -39,6 +39,8 @@ Open:
 http://127.0.0.1:8765
 ```
 
+By default the web service binds to `127.0.0.1` on the host. Keep this setting for local use. For remote access, prefer Tailscale or another private network instead of exposing the port directly to the public internet.
+
 ## Offline Smoke Test
 
 ```bash
