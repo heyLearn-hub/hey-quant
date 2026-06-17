@@ -63,6 +63,18 @@ OPENAI_API_KEY=your_openai_key
 
 The default AI provider is DeepSeek. If no AI key is configured, the system falls back to local supervisor rules unless `supervisor.require_api` is set to `true`.
 
+Required for paid FMP market data:
+
+```text
+FMP_API_KEY=your_fmp_key
+```
+
+After setting it, validate data coverage:
+
+```powershell
+docker compose --profile job run --rm quant-ai-job data-check --config config/default.yaml --provider fmp
+```
+
 Important: if a Telegram bot token was ever pasted into chat, rotate it in BotFather before using it for production.
 
 Find chat id:

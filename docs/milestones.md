@@ -262,9 +262,9 @@ Acceptance criteria:
 
 ## Milestone 8: Paid Market Data Integration
 
-Status: `Deferred`
+Status: `In progress`
 
-Goal: add a paid provider only when free sources become a practical blocker.
+Goal: use FMP Starter as the primary paid market-data provider while retaining free-source fallback.
 
 Candidate providers:
 
@@ -275,12 +275,14 @@ Candidate providers:
 
 Deliverables:
 
-- Coverage test for every configured ticker.
-- Adjusted price validation.
-- ETF availability validation.
+- FMP Starter selected as paid provider. `Done`
+- Credentials loaded through `.env` / `FMP_API_KEY`. `Done`
+- Coverage test command for every configured ticker. `Done`
+- Adjusted price validation. `Pending`
+- ETF availability validation. `Pending`
 - Historical depth validation.
 - Provider comparison report.
-- Free data source fallback retained.
+- Free data source fallback retained. `Done`
 
 Acceptance criteria:
 

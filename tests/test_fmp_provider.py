@@ -38,3 +38,31 @@ def test_download_fmp_normalizes_ohlcv(monkeypatch) -> None:
     assert frame.index.is_monotonic_increasing
     assert frame.iloc[-1]["close"] == 390.74
 
+
+def test_check_provider_data_reports_fmp_coverage(monkeypatch) -> None:
+    monkeypatch.setenv("FMP_API_KEY", "test-key")
+    monkeypatch.setattr(providers, "urlopen", lambda *args, **kwargs: _FakeResponse())
+
+    checks = providers.check_provider_data(
+        ["MSFT"],
+        "fmp",
+        providers.DataConfig(years=1),
+    )
+
+    assert checks[0].ticker == "MSFT"
+    assert checks[0].provider == "fmp"
+    assert checks[0].rows == 2
+    assert checks[0].latest_close == 390.74
+
+
+def test_check_provider_data_reports_missing_fmp_key(monkeypatch) -> None:
+    monkeypatch.delenv("FMP_API_KEY", raising=False)
+
+    checks = providers.check_provider_data(
+        ["MSFT"],
+        "fmp",
+        providers.DataConfig(years=1),
+    )
+
+    assert checks[0].ok is False
+    assert "FMP_API_KEY" in checks[0].message

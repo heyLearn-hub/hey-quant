@@ -32,6 +32,18 @@ class MarketDataSet:
     as_of: pd.Timestamp | None
 
 
+@dataclass(frozen=True)
+class ProviderCheck:
+    ticker: str
+    provider: str
+    rows: int
+    first_date: pd.Timestamp | None
+    last_date: pd.Timestamp | None
+    latest_close: float | None
+    ok: bool
+    message: str
+
+
 def normalize_ohlcv(frame: pd.DataFrame) -> pd.DataFrame:
     if frame.empty:
         return pd.DataFrame(columns=REQUIRED_COLUMNS)
@@ -163,6 +175,58 @@ def _download_stooq(ticker: str, start: datetime, end: datetime) -> tuple[pd.Dat
     if norm.empty:
         return norm, DataIssue(ticker, "stooq", "download returned no usable rows")
     return norm, None
+
+
+def check_provider_data(tickers: list[str], provider: str, config: DataConfig) -> list[ProviderCheck]:
+    provider = provider.lower().strip()
+    tickers = list(dict.fromkeys(ticker.upper() for ticker in tickers))
+    end = datetime.now(tz=UTC)
+    start = end - timedelta(days=int(config.years * 365.25) + 30)
+
+    prices: dict[str, pd.DataFrame] = {}
+    issues: list[DataIssue] = []
+    if provider == "fmp":
+        prices, issues = _download_fmp(tickers, start, end)
+    elif provider == "yfinance":
+        prices, issues = _download_yfinance(tickers, start, end)
+    elif provider == "stooq":
+        for ticker in tickers:
+            frame, issue = _download_stooq(ticker, start, end)
+            if not frame.empty:
+                prices[ticker] = frame
+            if issue:
+                issues.append(issue)
+    else:
+        raise ValueError(f"Unsupported provider: {provider}")
+
+    issue_by_ticker = {issue.ticker.upper(): issue for issue in issues if issue.ticker != "*"}
+    global_issues = [issue for issue in issues if issue.ticker == "*"]
+    checks: list[ProviderCheck] = []
+    for ticker in tickers:
+        frame = prices.get(ticker, pd.DataFrame(columns=REQUIRED_COLUMNS))
+        issue = issue_by_ticker.get(ticker)
+        if frame.empty:
+            message = issue.message if issue else "; ".join(item.message for item in global_issues) or "no data"
+            checks.append(ProviderCheck(ticker, provider, 0, None, None, None, False, message))
+            continue
+        last_date = frame.index.max()
+        latest_close = float(frame.loc[last_date, "close"])
+        stale_days = (pd.Timestamp.now(tz=UTC).normalize() - pd.Timestamp(last_date).normalize()).days
+        ok = len(frame) >= 220 and stale_days <= 7
+        message = "ok" if ok else f"rows={len(frame)}, stale_days={stale_days}"
+        checks.append(
+            ProviderCheck(
+                ticker=ticker,
+                provider=provider,
+                rows=len(frame),
+                first_date=frame.index.min(),
+                last_date=last_date,
+                latest_close=latest_close,
+                ok=ok,
+                message=message,
+            )
+        )
+    return checks
 
 
 def get_market_data(tickers: list[str], config: DataConfig) -> MarketDataSet:

@@ -230,13 +230,13 @@ supervisor:
 
 ## FMP 付费行情源
 
-当前默认数据源已经改回免费优先：
+当前默认数据源顺序：
 
 ```text
-yfinance -> Stooq -> FMP
+FMP -> yfinance -> Stooq
 ```
 
-系统仍然支持读取本地 `.env` 里的 `FMP_API_KEY`：
+系统读取本地 `.env` 里的 `FMP_API_KEY`，不要把 key 写进代码或提交到 Git：
 
 ```bash
 FMP_API_KEY="你的FMP_API_KEY"
@@ -249,7 +249,19 @@ data:
   stop_after_paid_provider: false
 ```
 
-你暂时不付费 API 时，不需要设置 FMP key。以后接入付费源时，再把 `provider_priority` 和 `stop_after_paid_provider` 调整为付费源优先。
+这表示优先使用 FMP；如果某只 ticker 在 FMP 缺数据，仍然允许 yfinance / Stooq 兜底。
+
+验证 FMP 覆盖：
+
+```bash
+bin/quant-ai-local data-check --config config/default.yaml --provider fmp
+```
+
+Windows Docker：
+
+```powershell
+docker compose --profile job run --rm quant-ai-job data-check --config config/default.yaml --provider fmp
+```
 
 ## Telegram 提醒
 

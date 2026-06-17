@@ -23,6 +23,12 @@ config/     user-editable config
 
 Secrets live in `.env`, never in the image.
 
+For paid FMP market data, put this in `.env`:
+
+```text
+FMP_API_KEY=your_fmp_key
+```
+
 ## First Setup
 
 ```bash
@@ -47,6 +53,16 @@ By default the web service binds to `127.0.0.1` on the host. Keep this setting f
 docker compose --profile job run --rm quant-ai-job run --config config/default.yaml --offline-sample --out outputs/docker_sample_report.html
 docker compose --profile job run --rm quant-ai-job factor-test --config config/default.yaml --offline-sample --out outputs/docker_factor_report.html
 ```
+
+## Market Data Check
+
+Validate FMP coverage before relying on live signals:
+
+```bash
+docker compose --profile job run --rm quant-ai-job data-check --config config/default.yaml --provider fmp
+```
+
+The command exits with code `0` only when all checked tickers have enough recent rows. Missing or stale tickers should be fixed before treating signals as live.
 
 ## Daily Report Job
 

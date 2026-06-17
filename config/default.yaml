@@ -47,9 +47,9 @@ data:
   sample_on_remote_failure: true
   stop_after_paid_provider: false
   provider_priority:
+    - fmp
     - yfinance
     - stooq
-    - fmp
 
 storage:
   db_path: data/portfolio.sqlite3

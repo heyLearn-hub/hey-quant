@@ -6,7 +6,7 @@ from pathlib import Path
 from quant_ai_system.config import load_config
 from quant_ai_system.emailer import send_summary_email
 from quant_ai_system.engine import run_system
-from quant_ai_system.data import get_market_data, make_sample_market_data
+from quant_ai_system.data import check_provider_data, get_market_data, make_sample_market_data
 from quant_ai_system.factors import run_factor_experiment, write_factor_report
 from quant_ai_system.server import install_launch_agent, serve, service_status, uninstall_launch_agent
 from quant_ai_system.telegram_notifier import fetch_telegram_updates, send_telegram_message
@@ -65,6 +65,11 @@ def _build_parser() -> argparse.ArgumentParser:
     factor.add_argument("--out", default="outputs/factor_report.html")
     factor.add_argument("--offline-sample", action="store_true")
     factor.add_argument("--forward-days", type=int, default=20)
+
+    data_check = sub.add_parser("data-check")
+    data_check.add_argument("--config", default="config/default.yaml")
+    data_check.add_argument("--provider", default="fmp", choices=["fmp", "yfinance", "stooq"])
+    data_check.add_argument("--tickers", default="", help="Comma-separated ticker override. Defaults to configured universe plus benchmarks.")
     return parser
 
 
@@ -107,6 +112,25 @@ def main(argv: list[str] | None = None) -> int:
         if data.issues:
             print(f"Data issues: {len(data.issues)}")
         return 0
+
+    if args.command == "data-check":
+        if args.tickers.strip():
+            tickers = [ticker.strip().upper() for ticker in args.tickers.split(",") if ticker.strip()]
+        else:
+            tickers = list(dict.fromkeys(config.universe.tickers + config.universe.leveraged_tickers + config.universe.benchmarks))
+        checks = check_provider_data(tickers, args.provider, config.data)
+        failures = [item for item in checks if not item.ok]
+        print(f"Provider: {args.provider}")
+        print(f"Tickers: {len(checks)}")
+        print(f"OK: {len(checks) - len(failures)}")
+        print(f"Failed/stale: {len(failures)}")
+        for item in checks:
+            first = item.first_date.date().isoformat() if item.first_date is not None else "-"
+            last = item.last_date.date().isoformat() if item.last_date is not None else "-"
+            close = f"{item.latest_close:.2f}" if item.latest_close is not None else "-"
+            status = "OK" if item.ok else "CHECK"
+            print(f"{status}\t{item.ticker}\trows={item.rows}\tfirst={first}\tlast={last}\tclose={close}\t{item.message}")
+        return 1 if failures else 0
 
     if args.command == "show-config":
         print(f"NAV: {config.account.nav:,.0f} {config.account.currency}")

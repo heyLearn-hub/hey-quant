@@ -42,3 +42,9 @@ def test_cli_offline_run(tmp_path: Path) -> None:
     code = main(["run", "--config", "config/default.yaml", "--offline-sample", "--out", str(out)])
     assert code == 0
     assert out.exists()
+
+
+def test_cli_data_check_missing_fmp_key(monkeypatch) -> None:
+    monkeypatch.delenv("FMP_API_KEY", raising=False)
+    code = main(["data-check", "--config", "config/default.yaml", "--provider", "fmp", "--tickers", "MSFT"])
+    assert code == 1
