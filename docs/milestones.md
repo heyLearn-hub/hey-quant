@@ -11,26 +11,30 @@ Status legend:
 
 ## Milestone 0: Project Governance And GitHub Foundation
 
-Status: `Not started`
+Status: `In progress`
 
 Goal: make the project safe to develop over time and push to GitHub without leaking secrets or runtime data.
 
 Deliverables:
 
-- Initialize and clean the Git repository structure.
-- Create or connect a GitHub repository.
-- Keep `.env`, API keys, SQLite databases, reports, caches, logs, and virtualenvs out of Git.
-- Document branch conventions:
+- Initialize and clean the Git repository structure. `Done locally`
+- Create or connect a GitHub repository. `Remote configured; push blocked by permission`
+- Keep `.env`, API keys, SQLite databases, reports, caches, logs, and virtualenvs out of Git. `Done`
+- Document branch conventions. `Done`
   - `main`: stable versions.
   - `dev`: integration branch.
   - `feature/*`: focused feature branches.
-- Add a basic PR checklist for tests, secrets, and docs.
+- Add a basic PR checklist for tests, secrets, and docs. `Done`
 
 Acceptance criteria:
 
-- Project can be pushed to GitHub.
-- `pytest` passes.
-- No API keys, real holdings, local reports, or runtime databases are tracked.
+- Project can be pushed to GitHub. `Blocked: current GitHub credential lacks write access`
+- `pytest` passes. `Done`
+- No API keys, real holdings, local reports, or runtime databases are tracked. `Done locally`
+
+Blocker:
+
+- `git push -u origin main` currently fails with GitHub `403` because the authenticated user does not have write permission to `heyLearn-hub/hey-quant`.
 
 ## Milestone 1: Local Core System Stable Version
 
@@ -233,4 +237,3 @@ Acceptance criteria:
 - Keep milestones small enough to finish and verify.
 - Mark a milestone `Done` only after implementation, documentation, and tests/smoke checks are complete.
 - Do not store credentials, real holdings, or local runtime state in this document.
-

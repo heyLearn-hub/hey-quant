@@ -139,6 +139,11 @@ bin/quant-ai-local run --config config/default.yaml --out outputs/latest_report.
 
 [docs/milestones.md](docs/milestones.md)
 
+本地开发流程和 GitHub 协作规则见：
+
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [docs/development_workflow.md](docs/development_workflow.md)
+
 ## 当前默认策略
 
 - 账户规模：140,000 HKD 按约 0.1276 汇率折为 17,870 USD。
