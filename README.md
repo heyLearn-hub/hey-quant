@@ -186,7 +186,7 @@ bin/quant-ai-local run --config config/default.yaml --out outputs/latest_report.
 - 加仓逻辑：综合分高、趋势仍在、未触发风控时才进入核心候选。
 - 减仓/退出：跌破 50 日线且相对强度转弱为减仓候选；跌破 200 日线为退出候选。
 
-## GPT / Supervisor 审查
+## AI / Supervisor 审查
 
 默认启用 Supervisor 审查。它不会自动下单，而是把量化候选再过一遍“主管/投委会”检查：
 
@@ -196,11 +196,27 @@ bin/quant-ai-local run --config config/default.yaml --out outputs/latest_report.
 - 杠杆 ETF 是否被降级为战术仓位；
 - 最终输出 `approve_for_consideration`, `hold`, `reject`, `manual_review`。
 
-如果配置了 OpenAI API key，会调用 OpenAI Responses API 的结构化输出；否则自动使用本地规则审查。
+AI 不负责拉行情、计算 MA/RSI/ATR、回测或替代止损；这些都由 Python 规则完成。AI 只做最后审查和解释。
+
+默认 provider 是 DeepSeek，性价比优先：
 
 ```bash
-export OPENAI_API_KEY="你的key"
+export DEEPSEEK_API_KEY="你的DeepSeek key"
 bin/quant-ai-local run --config config/default.yaml --out outputs/latest_report.html
+```
+
+也可以切换到 OpenAI：
+
+```yaml
+supervisor:
+  provider: openai
+  model: gpt-5.4-mini
+```
+
+然后设置：
+
+```bash
+export OPENAI_API_KEY="你的OpenAI key"
 ```
 
 如果你希望没有 API key 时直接阻断，而不是本地规则兜底，把 `config/default.yaml` 里的：

@@ -142,37 +142,110 @@ def _parse_reviews(raw_text: str, provider: str) -> list[SupervisorDecision]:
     ]
 
 
+def _supervisor_prompt(config: SupervisorConfig, signals: list[SignalResult], data_quality_issues: list[object]) -> str:
+    payload = _signal_payload(signals, data_quality_issues)
+    return (
+        "Act as a public-equity investment committee supervisor for a small, concentrated US tech/AI portfolio. "
+        "This is research support, not personalized financial advice or automatic execution. "
+        "Approve only signals that pass data quality, trend, quality, sizing, stop-loss, liquidity, and concentration checks. "
+        "Return JSON only with this exact shape: "
+        '{"reviews":[{"ticker":"MSFT","decision":"approve_for_consideration|hold|reject|manual_review",'
+        '"approval_score":0,"final_action":"string","rationale":"string","blockers":[],"required_checks":[]}]}. '
+        f"Policy: {config.policy or []}. Signals: {json.dumps(payload, ensure_ascii=False)}"
+    )
+
+
+def _chat_completion_supervisor_review(
+    signals: list[SignalResult],
+    config: SupervisorConfig,
+    data_quality_issues: list[object],
+    *,
+    provider: str,
+    api_key: str,
+    base_url: str | None = None,
+) -> list[SupervisorDecision]:
+    from openai import OpenAI
+
+    client = OpenAI(api_key=api_key, base_url=base_url) if base_url else OpenAI(api_key=api_key)
+    response = client.chat.completions.create(
+        model=config.model,
+        messages=[
+            {"role": "system", "content": "You are a strict investment risk supervisor. Return valid JSON only."},
+            {"role": "user", "content": _supervisor_prompt(config, signals, data_quality_issues)},
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.2,
+    )
+    content = response.choices[0].message.content or '{"reviews":[]}'
+    return _parse_reviews(content, provider)
+
+
 def openai_supervisor_review(
     signals: list[SignalResult],
     config: SupervisorConfig,
     data_quality_issues: list[object],
 ) -> list[SupervisorDecision]:
-    from openai import OpenAI
+    api_key = os.environ.get(config.openai_api_key_env, "").strip()
+    if not api_key:
+        raise ValueError(f"{config.openai_api_key_env} is missing")
+    return _chat_completion_supervisor_review(signals, config, data_quality_issues, provider="openai", api_key=api_key)
 
-    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-    payload = _signal_payload(signals, data_quality_issues)
-    prompt = {
-        "role": "user",
-        "content": (
-            "Act as a public-equity investment committee supervisor. Review these quant signals for a small, "
-            "concentrated US tech/AI portfolio. Do not give personalized financial advice or automatic execution. "
-            "Approve only signals that pass data quality, trend, quality, sizing, stop-loss, and concentration checks. "
-            f"Policy: {config.policy or []}. Signals: {json.dumps(payload, ensure_ascii=False)}"
-        ),
-    }
-    response = client.responses.create(
-        model=config.model,
-        input=[prompt],
-        text={
-            "format": {
-                "type": "json_schema",
-                "name": "supervisor_reviews",
-                "strict": True,
-                "schema": REVIEW_SCHEMA,
-            }
-        },
+
+def deepseek_supervisor_review(
+    signals: list[SignalResult],
+    config: SupervisorConfig,
+    data_quality_issues: list[object],
+) -> list[SupervisorDecision]:
+    api_key = os.environ.get(config.deepseek_api_key_env, "").strip()
+    if not api_key:
+        raise ValueError(f"{config.deepseek_api_key_env} is missing")
+    return _chat_completion_supervisor_review(
+        signals,
+        config,
+        data_quality_issues,
+        provider="deepseek",
+        api_key=api_key,
+        base_url=config.deepseek_base_url,
     )
-    return _parse_reviews(response.output_text, "openai")
+
+
+def _missing_api_reviews(signals: list[SignalResult], provider: str, env_name: str) -> list[SupervisorDecision]:
+    return [
+        SupervisorDecision(
+            ticker=signal.ticker,
+            decision="manual_review",
+            approval_score=0,
+            final_action=f"缺少{env_name}，人工复核",
+            rationale=f"Supervisor requires {provider} API but {env_name} is not configured.",
+            blockers=[f"{env_name} is missing"],
+            required_checks=[f"配置{env_name}后重新运行"],
+            provider=f"missing_{provider}_key",
+        )
+        for signal in signals
+    ]
+
+
+def _fallback_after_api_failure(
+    signals: list[SignalResult],
+    config: SupervisorConfig,
+    data_quality_issues: list[object],
+    provider: str,
+    exc: Exception,
+) -> list[SupervisorDecision]:
+    fallback = local_supervisor_review(signals, config, data_quality_issues)
+    return [
+        SupervisorDecision(
+            ticker=item.ticker,
+            decision="manual_review" if item.decision == "approve_for_consideration" else item.decision,
+            approval_score=min(item.approval_score, 50),
+            final_action=f"{provider}审查失败，人工复核",
+            rationale=f"{provider} review failed: {exc}. Local fallback applied.",
+            blockers=item.blockers + [f"{provider} supervisor review failed"],
+            required_checks=item.required_checks,
+            provider=f"local_rules_after_{provider}_failure",
+        )
+        for item in fallback
+    ]
 
 
 def run_supervisor_review(
@@ -182,37 +255,21 @@ def run_supervisor_review(
 ) -> list[SupervisorDecision]:
     if not config.enabled:
         return []
-    if config.provider == "openai" and os.environ.get("OPENAI_API_KEY"):
+    provider = config.provider.lower().strip()
+    if provider == "openai":
+        if not os.environ.get(config.openai_api_key_env):
+            return _missing_api_reviews(signals, "openai", config.openai_api_key_env) if config.require_api else local_supervisor_review(signals, config, data_quality_issues)
         try:
             return openai_supervisor_review(signals, config, data_quality_issues)
         except Exception as exc:
-            fallback = local_supervisor_review(signals, config, data_quality_issues)
-            return [
-                SupervisorDecision(
-                    ticker=item.ticker,
-                    decision="manual_review" if item.decision == "approve_for_consideration" else item.decision,
-                    approval_score=min(item.approval_score, 50),
-                    final_action="GPT审查失败，人工复核",
-                    rationale=f"OpenAI review failed: {exc}. Local fallback applied.",
-                    blockers=item.blockers + ["OpenAI supervisor review failed"],
-                    required_checks=item.required_checks,
-                    provider="local_rules_after_openai_failure",
-                )
-                for item in fallback
-            ]
+            return _fallback_after_api_failure(signals, config, data_quality_issues, "openai", exc)
+    if provider == "deepseek":
+        if not os.environ.get(config.deepseek_api_key_env):
+            return _missing_api_reviews(signals, "deepseek", config.deepseek_api_key_env) if config.require_api else local_supervisor_review(signals, config, data_quality_issues)
+        try:
+            return deepseek_supervisor_review(signals, config, data_quality_issues)
+        except Exception as exc:
+            return _fallback_after_api_failure(signals, config, data_quality_issues, "deepseek", exc)
     if config.require_api:
-        return [
-            SupervisorDecision(
-                ticker=signal.ticker,
-                decision="manual_review",
-                approval_score=0,
-                final_action="缺少OPENAI_API_KEY，人工复核",
-                rationale="Supervisor requires OpenAI API but no key is configured.",
-                blockers=["OPENAI_API_KEY is missing"],
-                required_checks=["配置OPENAI_API_KEY后重新运行"],
-                provider="missing_openai_key",
-            )
-            for signal in signals
-        ]
+        return _missing_api_reviews(signals, provider or "unknown", "SUPERVISOR_API_KEY")
     return local_supervisor_review(signals, config, data_quality_issues)
-

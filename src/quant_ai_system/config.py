@@ -142,12 +142,15 @@ class QualityConfig:
 @dataclass(frozen=True)
 class SupervisorConfig:
     enabled: bool = True
-    provider: str = "openai"
-    model: str = "gpt-5"
+    provider: str = "deepseek"
+    model: str = "deepseek-v4-flash"
     require_api: bool = False
     min_approval_score: float = 70
     max_core_approvals: int = 2
     review_style: str = "investment_committee"
+    openai_api_key_env: str = "OPENAI_API_KEY"
+    deepseek_api_key_env: str = "DEEPSEEK_API_KEY"
+    deepseek_base_url: str = "https://api.deepseek.com"
     policy: list[str] | None = None
 
 

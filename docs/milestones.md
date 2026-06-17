@@ -215,7 +215,7 @@ Acceptance criteria:
 
 ## Milestone 7: AI Supervisor V2
 
-Status: `Not started`
+Status: `In progress`
 
 Goal: make AI review more useful while keeping Python as the deterministic calculation layer.
 
@@ -237,6 +237,26 @@ Acceptance criteria:
 - AI output references system-calculated data.
 - Reports and emails can display AI review results.
 - Python rules remain available as fallback.
+
+## Milestone 7A: AI Provider Adapter V1
+
+Status: `Done`
+
+Goal: support low-cost AI supervisor review while keeping local rules as a fallback.
+
+Deliverables:
+
+- DeepSeek provider through OpenAI-compatible chat completions. `Done`
+- OpenAI provider through chat completions. `Done`
+- Provider config for model, env var names, and DeepSeek base URL. `Done`
+- Missing-key behavior with local fallback unless `require_api` is true. `Done`
+- Unit tests for fallback, missing-key blocking, and DeepSeek JSON parsing. `Done`
+
+Acceptance criteria:
+
+- `.env` can provide `DEEPSEEK_API_KEY` without committing secrets.
+- The default config uses `provider: deepseek` and `model: deepseek-v4-flash`.
+- If AI review fails, the report still completes with local rule fallback and marks the review as manual.
 
 ## Milestone 8: Paid Market Data Integration
 

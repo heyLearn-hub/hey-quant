@@ -2,6 +2,8 @@
 
 This document is the handoff checklist for moving day-to-day operation from the Mac development machine to the Windows host.
 
+For normal code updates, use `scripts/windows_docker_update.ps1`; do not repeat this handoff checklist. This file is mainly for first setup or for a new Windows Codex thread that needs project context.
+
 ## Target Shape
 
 ```text
@@ -50,6 +52,16 @@ Required for Telegram:
 TELEGRAM_BOT_TOKEN=your_rotated_bot_token
 TELEGRAM_CHAT_ID=your_chat_id
 ```
+
+Optional for AI Supervisor:
+
+```text
+DEEPSEEK_API_KEY=your_deepseek_key
+# or
+OPENAI_API_KEY=your_openai_key
+```
+
+The default AI provider is DeepSeek. If no AI key is configured, the system falls back to local supervisor rules unless `supervisor.require_api` is set to `true`.
 
 Important: if a Telegram bot token was ever pasted into chat, rotate it in BotFather before using it for production.
 
@@ -168,4 +180,3 @@ docker compose logs -f quant-ai-web
 docker compose restart quant-ai-web
 docker compose down
 ```
-

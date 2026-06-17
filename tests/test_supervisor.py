@@ -9,7 +9,7 @@ from quant_ai_system.indicators import build_indicators
 from quant_ai_system.quality import QualityAssessment
 from quant_ai_system.signals import evaluate_signal
 from quant_ai_system.config import AccountConfig, QualityConfig, RiskConfig
-from quant_ai_system.supervisor import local_supervisor_review
+from quant_ai_system.supervisor import deepseek_supervisor_review, local_supervisor_review, run_supervisor_review
 
 
 def _uptrend_frame() -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -81,3 +81,85 @@ def test_local_supervisor_can_approve_clean_high_score_signal() -> None:
 
     assert reviews[0].decision in {"approve_for_consideration", "hold"}
     assert reviews[0].provider == "local_rules"
+
+
+def test_deepseek_provider_falls_back_without_key(monkeypatch) -> None:
+    stock, benchmark = _uptrend_frame()
+    frame = build_indicators(stock, benchmark)
+    signal = evaluate_signal(
+        "MSFT",
+        frame,
+        AccountConfig(nav=17_870),
+        RiskConfig(),
+        QualityAssessment("MSFT", 95, "quality compounder", "buffett_quality"),
+        QualityConfig(technical_weight=0.0, quality_weight=1.0),
+    )
+    assert signal is not None
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+
+    reviews = run_supervisor_review([signal], SupervisorConfig(provider="deepseek", require_api=False), [])
+
+    assert reviews[0].provider == "local_rules"
+
+
+def test_deepseek_provider_requires_key_when_configured(monkeypatch) -> None:
+    stock, benchmark = _uptrend_frame()
+    frame = build_indicators(stock, benchmark)
+    signal = evaluate_signal(
+        "MSFT",
+        frame,
+        AccountConfig(nav=17_870),
+        RiskConfig(),
+        QualityAssessment("MSFT", 95, "quality compounder", "buffett_quality"),
+        QualityConfig(technical_weight=0.0, quality_weight=1.0),
+    )
+    assert signal is not None
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+
+    reviews = run_supervisor_review([signal], SupervisorConfig(provider="deepseek", require_api=True), [])
+
+    assert reviews[0].decision == "manual_review"
+    assert reviews[0].provider == "missing_deepseek_key"
+
+
+def test_deepseek_review_parses_json_response(monkeypatch) -> None:
+    stock, benchmark = _uptrend_frame()
+    frame = build_indicators(stock, benchmark)
+    signal = evaluate_signal(
+        "MSFT",
+        frame,
+        AccountConfig(nav=17_870),
+        RiskConfig(),
+        QualityAssessment("MSFT", 95, "quality compounder", "buffett_quality"),
+        QualityConfig(technical_weight=0.0, quality_weight=1.0),
+    )
+    assert signal is not None
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+
+    class _FakeMessage:
+        content = (
+            '{"reviews":[{"ticker":"MSFT","decision":"hold","approval_score":72,'
+            '"final_action":"观察","rationale":"test","blockers":[],"required_checks":["check"]}]}'
+        )
+
+    class _FakeChoice:
+        message = _FakeMessage()
+
+    class _FakeCompletions:
+        def create(self, **kwargs):
+            assert kwargs["model"] == "deepseek-v4-flash"
+            assert kwargs["response_format"] == {"type": "json_object"}
+            return type("Resp", (), {"choices": [_FakeChoice()]})()
+
+    class _FakeClient:
+        def __init__(self, api_key=None, base_url=None):
+            assert api_key == "test-key"
+            assert base_url == "https://api.deepseek.com"
+            self.chat = type("Chat", (), {"completions": _FakeCompletions()})()
+
+    monkeypatch.setattr("openai.OpenAI", _FakeClient)
+
+    reviews = deepseek_supervisor_review([signal], SupervisorConfig(provider="deepseek"), [])
+
+    assert reviews[0].ticker == "MSFT"
+    assert reviews[0].provider == "deepseek"

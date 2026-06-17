@@ -152,12 +152,15 @@ quality:
 
 supervisor:
   enabled: true
-  provider: openai
-  model: gpt-5
+  provider: deepseek
+  model: deepseek-v4-flash
   require_api: false
   min_approval_score: 70
   max_core_approvals: 2
   review_style: investment_committee
+  openai_api_key_env: OPENAI_API_KEY
+  deepseek_api_key_env: DEEPSEEK_API_KEY
+  deepseek_base_url: https://api.deepseek.com
   policy:
     - never approve purely because technical momentum is strong
     - require clear stop, position size, and data-quality status
