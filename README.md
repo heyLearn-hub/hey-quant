@@ -65,7 +65,30 @@ bin/quant-ai-local uninstall-service
 
 ## Windows 主机部署
 
-在 Windows 上建议使用 PowerShell：
+推荐使用 Docker 部署到 Windows 主机。Docker 方式见：
+
+[docs/docker_deployment.md](docs/docker_deployment.md)
+
+核心命令：
+
+```powershell
+docker compose build
+docker compose up -d quant-ai-web
+```
+
+打开：
+
+```text
+http://127.0.0.1:8765
+```
+
+每日邮件任务可以由 Windows Task Scheduler 调用：
+
+```powershell
+.\scripts\windows_docker_daily_job.ps1 -ProjectRoot "C:\path\to\hey-quant" -SendEmail
+```
+
+也可以使用非 Docker 的 PowerShell 本地 Python 方式：
 
 ```powershell
 cd C:\path\to\量化投资系统
@@ -89,7 +112,7 @@ http://127.0.0.1:8765
 - 标记清仓；
 - 查看当前持仓和系统信号是否冲突。
 
-Windows 定时邮件可以用 Task Scheduler。模板在：
+Windows 非 Docker 定时邮件可以用 Task Scheduler。模板在：
 
 ```text
 scripts/windows_daily_email_task.xml
@@ -143,6 +166,7 @@ bin/quant-ai-local run --config config/default.yaml --out outputs/latest_report.
 
 - [CONTRIBUTING.md](CONTRIBUTING.md)
 - [docs/development_workflow.md](docs/development_workflow.md)
+- [docs/docker_deployment.md](docs/docker_deployment.md)
 
 ## 当前默认策略
 

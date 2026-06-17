@@ -106,27 +106,36 @@ Acceptance criteria:
 .\bin\quant-ai-local.ps1 run --config config\default.yaml --out outputs\latest_report.html --send-email
 ```
 
-## Milestone 4: Windows Deployment V1
+## Milestone 4: Dockerized Windows Deployment V1
 
 Status: `In progress`
 
-Goal: run the system on a Windows host while using the Mac as the development and planning machine.
+Goal: run the system on a Windows host through Docker while using the Mac as the development and planning machine.
 
 Deliverables:
 
-- PowerShell launcher.
-- Batch launcher.
-- Windows Task Scheduler XML template.
-- Windows setup instructions.
-- Local web service available on Windows.
-- Daily scheduled report and email command.
+- Dockerfile. `Done`
+- Docker Compose services for web and scheduled jobs. `Done`
+- `.env.example` for local secrets. `Done`
+- Windows Docker daily job PowerShell helper. `Done`
+- Windows Task Scheduler Docker XML template. `Done`
+- Docker deployment documentation. `Done`
+- Docker Compose config validation. `Done on Mac`
+- Local web service available through Docker. `Pending smoke verification on target Windows host`
+- Daily scheduled report and email command through Docker. `Pending smoke verification on target Windows host`
 
 Acceptance criteria:
 
-- Windows host can run the local web service at `http://127.0.0.1:8765`.
-- Windows Task Scheduler can run the daily report command.
-- Logs and outputs are inspectable.
-- The service survives a Windows reboot or can be restarted predictably.
+- `docker compose build` succeeds.
+- `docker compose up -d quant-ai-web` serves `http://127.0.0.1:8765`.
+- `docker compose --profile job run --rm quant-ai-job run --config config/default.yaml --offline-sample --out outputs/docker_sample_report.html` succeeds.
+- Windows Task Scheduler can run `scripts/windows_docker_daily_job.ps1`.
+- `data/`, `outputs/`, and `logs/` persist outside the container.
+- `.env` is loaded at runtime and never baked into the image.
+
+Current blocker:
+
+- Local Docker CLI is installed, but Docker Desktop daemon was not running during Mac verification. `docker compose config` passes; `docker compose build` and container smoke tests should be run after Docker Desktop starts or on the Windows host.
 
 ## Milestone 5: Strategy And Factor Experiments V1
 

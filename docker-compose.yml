@@ -1,0 +1,50 @@
+name: hey-quant
+
+services:
+  quant-ai-web:
+    build:
+      context: .
+    image: hey-quant:local
+    container_name: hey-quant-web
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "8765:8765"
+    volumes:
+      - ./config:/app/config:ro
+      - ./data:/app/data
+      - ./outputs:/app/outputs
+      - ./logs:/app/logs
+    command:
+      - serve
+      - --config
+      - config/default.yaml
+      - --out
+      - outputs/latest_report.html
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8765"
+    restart: unless-stopped
+
+  quant-ai-job:
+    image: hey-quant:local
+    build:
+      context: .
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./config:/app/config:ro
+      - ./data:/app/data
+      - ./outputs:/app/outputs
+      - ./logs:/app/logs
+    profiles:
+      - job
+    command:
+      - run
+      - --config
+      - config/default.yaml
+      - --out
+      - outputs/latest_report.html
