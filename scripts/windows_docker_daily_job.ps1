@@ -1,6 +1,7 @@
 param(
   [string]$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path,
-  [switch]$SendEmail
+  [switch]$SendEmail,
+  [switch]$SendTelegram
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,6 +16,10 @@ $args = @(
 
 if ($SendEmail) {
   $args += "--send-email"
+}
+
+if ($SendTelegram) {
+  $args += "--send-telegram"
 }
 
 docker @args

@@ -9,7 +9,7 @@ quant-ai-web
   local web UI at http://127.0.0.1:8765
 
 quant-ai-job
-  one-shot job for scheduled report/email generation
+  one-shot job for scheduled report/Telegram generation
 ```
 
 Persistent local folders:
@@ -56,10 +56,16 @@ Without email:
 docker compose --profile job run --rm quant-ai-job run --config config/default.yaml --out outputs/latest_report.html
 ```
 
-With email:
+With Telegram:
 
 ```bash
-docker compose --profile job run --rm quant-ai-job run --config config/default.yaml --out outputs/latest_report.html --send-email
+docker compose --profile job run --rm quant-ai-job run --config config/default.yaml --out outputs/latest_report.html --send-telegram
+```
+
+To discover the Telegram chat id, first send `/start` to the bot, set `TELEGRAM_BOT_TOKEN` in `.env`, then run:
+
+```bash
+docker compose --profile job run --rm quant-ai-job telegram-chat-id --config config/default.yaml
 ```
 
 ## Updating From GitHub
@@ -118,13 +124,13 @@ Do not expose the Docker web port directly to the public internet.
 Use this helper:
 
 ```powershell
-.\scripts\windows_docker_daily_job.ps1 -ProjectRoot "C:\path\to\hey-quant" -SendEmail
+.\scripts\windows_docker_daily_job.ps1 -ProjectRoot "C:\path\to\hey-quant" -SendTelegram
 ```
 
 Or import:
 
 ```text
-scripts/windows_docker_daily_email_task.xml
+scripts/windows_docker_daily_telegram_task.xml
 ```
 
 Before importing, replace `__PROJECT_ROOT__` with the absolute project path on the Windows host.

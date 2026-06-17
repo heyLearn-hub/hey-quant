@@ -31,6 +31,7 @@ def test_run_system_writes_html_report(tmp_path: Path) -> None:
     assert result.report_path == report_path
     assert "核心 1-2 个持仓候选" in html
     assert "GPT / Supervisor 最终审查" in html
+    assert "利润保护与退出规则" in html
     assert "完整观察池与 LOTS 仓位" in html
     assert "Public Equity 风险解释字段" in html
     assert len(result.signals) > 0

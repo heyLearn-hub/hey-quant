@@ -38,7 +38,7 @@ REPORT_TEMPLATE = """<!doctype html>
       <div class="tile">扫描股票数 <b>{{ summary.ticker_count }}</b></div>
       <div class="tile">核心候选 <b>{{ summary.core_count }}</b></div>
       <div class="tile">减仓/退出候选 <b>{{ summary.risk_count }}</b></div>
-      <div class="tile">组合模式 <b>{{ portfolio_risk.mode }}</b></div>
+      <div class="tile">持仓保护触发 <b>{{ summary.position_exit_count }}</b></div>
     </div>
 
     <section>
@@ -89,11 +89,36 @@ REPORT_TEMPLATE = """<!doctype html>
     </section>
 
     <section>
+      <h2>利润保护与退出规则</h2>
+      <table>
+        <thead><tr><th>Ticker</th><th>保护动作</th><th>当前价</th><th>成本</th><th>当前浮盈</th><th>最高浮盈</th><th>利润回吐</th><th>动态保护线</th><th>说明</th></tr></thead>
+        <tbody>
+          {% for row in exit_reviews %}{% set r = row.review %}
+          <tr>
+            <td><b>{{ r.ticker }}</b></td>
+            <td><span class="tag {{ row.css }}">{{ r.action }}</span></td>
+            <td>{{ "%.2f"|format(r.close) if r.close is not none else "无数据" }}</td>
+            <td>{{ "%.2f"|format(r.average_cost) }}</td>
+            <td>{{ "%.1f%%"|format(r.current_pnl_pct * 100) if r.current_pnl_pct is not none else "无数据" }}</td>
+            <td>{{ "%.1f%%"|format(r.highest_pnl_pct * 100) if r.highest_pnl_pct is not none else "无数据" }}</td>
+            <td>{{ "%.1f%%"|format(r.profit_giveback_pct * 100) if r.profit_giveback_pct is not none else "未进入盈利保护" }}</td>
+            <td>{{ "%.2f"|format(r.dynamic_stop) if r.dynamic_stop is not none else "未设置" }}</td>
+            <td>{{ "; ".join(r.notes) }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="9" class="muted">还没有录入持仓，暂不生成利润保护规则。</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section>
       <h2>当前持仓检查</h2>
       <table>
-        <thead><tr><th>Ticker</th><th>股数</th><th>成本</th><th>系统价格</th><th>浮盈亏</th><th>系统动作</th><th>止损参考</th><th>备注</th></tr></thead>
+        <thead><tr><th>Ticker</th><th>股数</th><th>成本</th><th>系统价格</th><th>浮盈亏</th><th>系统动作</th><th>保护动作</th><th>止损参考</th><th>备注</th></tr></thead>
         <tbody>
           {% for p in positions %}{% set s = signal_by_ticker.get(p.ticker) %}
+          {% set er = exit_review_by_ticker.get(p.ticker) %}
           <tr>
             <td><b>{{ p.ticker }}</b></td>
             <td>{{ "%.2f"|format(p.shares) }}</td>
@@ -101,11 +126,12 @@ REPORT_TEMPLATE = """<!doctype html>
             <td>{{ "%.2f"|format(s.close) if s else "无数据" }}</td>
             <td>{% if s %}{{ "%.1f%%"|format((s.close / p.average_cost - 1) * 100) }}{% else %}无数据{% endif %}</td>
             <td>{{ s.action if s else "无信号" }}</td>
+            <td>{{ er.action if er else "未生成" }}</td>
             <td>{% if s %}{{ "%.2f"|format(s.position.stop_price) }}{% elif p.current_stop %}{{ "%.2f"|format(p.current_stop) }}{% else %}未设置{% endif %}</td>
             <td>{{ p.thesis_note }}</td>
           </tr>
           {% else %}
-          <tr><td colspan="8" class="muted">还没有录入持仓。可以在本地网页服务里新增持仓。</td></tr>
+          <tr><td colspan="9" class="muted">还没有录入持仓。可以在本地网页服务里新增持仓。</td></tr>
           {% endfor %}
         </tbody>
       </table>

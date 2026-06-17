@@ -9,6 +9,7 @@ from quant_ai_system.engine import run_system
 from quant_ai_system.data import get_market_data, make_sample_market_data
 from quant_ai_system.factors import run_factor_experiment, write_factor_report
 from quant_ai_system.server import install_launch_agent, serve, service_status, uninstall_launch_agent
+from quant_ai_system.telegram_notifier import fetch_telegram_updates, send_telegram_message
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -21,11 +22,20 @@ def _build_parser() -> argparse.ArgumentParser:
         cmd.add_argument("--out", default="outputs/latest_report.html")
         cmd.add_argument("--offline-sample", action="store_true", help="Use deterministic sample data instead of remote market data.")
         cmd.add_argument("--send-email", action="store_true", help="Send summary email after generating the report.")
+        cmd.add_argument("--send-telegram", action="store_true", help="Send summary Telegram message after generating the report.")
 
     email = sub.add_parser("send-email")
     email.add_argument("--config", default="config/default.yaml")
     email.add_argument("--out", default="outputs/latest_report.html")
     email.add_argument("--offline-sample", action="store_true")
+
+    telegram = sub.add_parser("send-telegram")
+    telegram.add_argument("--config", default="config/default.yaml")
+    telegram.add_argument("--out", default="outputs/latest_report.html")
+    telegram.add_argument("--offline-sample", action="store_true")
+
+    telegram_chat = sub.add_parser("telegram-chat-id")
+    telegram_chat.add_argument("--config", default="config/default.yaml")
 
     show = sub.add_parser("show-config")
     show.add_argument("--config", default="config/default.yaml")
@@ -105,10 +115,28 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Risk profile: {config.risk.profile}")
         return 0
 
+    if args.command == "telegram-chat-id":
+        updates = fetch_telegram_updates(config)
+        seen: set[str] = set()
+        for update in updates:
+            message = update.get("message") or update.get("channel_post") or {}
+            chat = message.get("chat") or {}
+            chat_id = str(chat.get("id", "")).strip()
+            if chat_id and chat_id not in seen:
+                seen.add(chat_id)
+                title = chat.get("title") or chat.get("username") or chat.get("first_name") or ""
+                print(f"{chat_id}\t{title}")
+        if not seen:
+            print("No chat id found. Send /start to the bot in Telegram, then rerun this command.")
+        return 0
+
     result = run_system(config, Path(args.out), offline_sample=args.offline_sample)
     if getattr(args, "send_email", False) or args.command == "send-email":
         send_summary_email(config, result)
         print("Email: sent")
+    if getattr(args, "send_telegram", False) or args.command == "send-telegram":
+        send_telegram_message(config, result)
+        print("Telegram: sent")
     print(f"Report: {result.report_path}")
     print(f"Signals: {len(result.signals)}")
     approved = {review.ticker for review in result.supervisor_reviews if review.decision == "approve_for_consideration"}

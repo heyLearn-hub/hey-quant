@@ -7,6 +7,7 @@ from quant_ai_system.backtest import BacktestResult, run_backtest
 from quant_ai_system.config import AppConfig
 from quant_ai_system.data import MarketDataSet, get_market_data, make_sample_market_data
 from quant_ai_system.data.providers import DataIssue
+from quant_ai_system.exit_rules import PositionExitReview, evaluate_positions_exit
 from quant_ai_system.indicators import build_indicators
 from quant_ai_system.quality import assess_quality
 from quant_ai_system.report.html import render_report
@@ -24,6 +25,7 @@ class RunResult:
     portfolio_risk: PortfolioRiskState
     supervisor_reviews: list[SupervisorDecision]
     positions: list[StoredPosition]
+    exit_reviews: list[PositionExitReview]
     report_path: Path
 
 
@@ -38,12 +40,14 @@ def run_system(config: AppConfig, out_path: str | Path, offline_sample: bool = F
     benchmark = market_data.prices.get(config.universe.primary_benchmark)
 
     signals: list[SignalResult] = []
+    indicators_by_ticker = {}
     leveraged_set = set(config.universe.leveraged_tickers)
     for ticker in tradable_tickers:
         frame = market_data.prices.get(ticker)
         if frame is None or frame.empty:
             continue
         indicators = build_indicators(frame, benchmark)
+        indicators_by_ticker[ticker] = indicators
         quality = assess_quality(ticker, config.quality, leveraged_set)
         signal = evaluate_signal(
             ticker,
@@ -71,6 +75,7 @@ def run_system(config: AppConfig, out_path: str | Path, offline_sample: bool = F
         portfolio_risk = evaluate_portfolio_drawdown(backtest.equity_curves["full_system"], config.risk)
     supervisor_reviews = run_supervisor_review(signals, config.supervisor, market_data.issues)
     positions = list_positions(config.storage.db_path)
+    exit_reviews = evaluate_positions_exit(positions, indicators_by_ticker, config.risk, signals)
     report_path = render_report(
         config,
         signals,
@@ -81,5 +86,6 @@ def run_system(config: AppConfig, out_path: str | Path, offline_sample: bool = F
         market_data.as_of,
         supervisor_reviews=supervisor_reviews,
         positions=positions,
+        exit_reviews=exit_reviews,
     )
-    return RunResult(market_data, signals, backtest, portfolio_risk, supervisor_reviews, positions, report_path)
+    return RunResult(market_data, signals, backtest, portfolio_risk, supervisor_reviews, positions, exit_reviews, report_path)

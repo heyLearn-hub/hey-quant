@@ -83,14 +83,16 @@ Acceptance criteria:
 - The report shows the holding, cost, current signal, and stop reference.
 - Runtime database files are ignored by Git.
 
-## Milestone 3: Email Alerts V1
+## Milestone 3: Notification Alerts V1
 
 Status: `Done`
 
-Goal: send daily research summaries through Outlook/SMTP.
+Goal: send daily research summaries through Telegram first, with Outlook/SMTP kept as fallback.
 
 Deliverables:
 
+- Telegram Bot API notification sender. `Done`
+- Telegram chat id helper command. `Done`
 - SMTP config via environment variables.
 - Daily summary email body.
 - Risk/high-action candidates highlighted in subject/body.
@@ -99,11 +101,12 @@ Deliverables:
 
 Acceptance criteria:
 
+- Telegram sending can be tested with mocked HTTP in tests.
 - Email sending can be tested with mocked SMTP in tests.
 - A real Windows host can set `.env` variables and run:
 
 ```powershell
-.\bin\quant-ai-local.ps1 run --config config\default.yaml --out outputs\latest_report.html --send-email
+.\bin\quant-ai-local.ps1 run --config config\default.yaml --out outputs\latest_report.html --send-telegram
 ```
 
 ## Milestone 4: Dockerized Windows Deployment V1
@@ -130,7 +133,7 @@ Acceptance criteria:
 - `docker compose build` succeeds.
 - `docker compose up -d quant-ai-web` serves `http://127.0.0.1:8765`.
 - `docker compose --profile job run --rm quant-ai-job run --config config/default.yaml --offline-sample --out outputs/docker_sample_report.html` succeeds.
-- Windows Task Scheduler can run `scripts/windows_docker_daily_job.ps1`.
+- Windows Task Scheduler can run `scripts/windows_docker_daily_job.ps1` with `-SendTelegram`.
 - Windows host can pull from GitHub and redeploy with `scripts/windows_docker_update.ps1`.
 - `data/`, `outputs/`, and `logs/` persist outside the container.
 - `.env` is loaded at runtime and never baked into the image.
@@ -138,7 +141,7 @@ Acceptance criteria:
 Verification notes:
 
 - Mac Docker smoke test passed after Docker Desktop was started: image build succeeded, web service responded on `http://127.0.0.1:8765`, and offline sample report was generated at `outputs/docker_sample_report.html`.
-- Windows Task Scheduler and email delivery still need final verification on the target Windows host.
+- Windows Task Scheduler and Telegram delivery still need final verification on the target Windows host.
 
 ## Milestone 5: Strategy And Factor Experiments V1
 
@@ -161,6 +164,27 @@ Acceptance criteria:
 
 - Offline factor report can be generated.
 - Report explains that factor results are research tools, not direct trading signals.
+
+## Milestone 5A: Profit Protection And Exit Rules V1
+
+Status: `Done`
+
+Goal: reduce the user's pain from large unrealized gains giving back too much before there is an explicit sell decision.
+
+Deliverables:
+
+- Position-level highest close and highest unrealized profit tracking. `Done`
+- Profit giveback calculation. `Done`
+- Dynamic protection line using manual stop, system stop, profit floor, and ATR trailing stop. `Done`
+- Action labels for hold, no-add, trim, and exit candidates. `Done`
+- Report section for profit protection and exit rules. `Done`
+- Telegram/email summary includes protection triggers. `Done`
+
+Acceptance criteria:
+
+- Given an open position and price history, the system reports current PnL, highest PnL, giveback percentage, dynamic protection line, and protection action.
+- Triggered protection actions appear before the generic observation list in the HTML report.
+- Unit tests cover profit giveback and missing market-data manual review.
 
 ## Milestone 6: Backtest System Enhancement
 

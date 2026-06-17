@@ -1,6 +1,6 @@
 # 美股科技/半导体/AI 低频量化提醒系统 v1
 
-本系统是本地研究和提醒工具，不接券商 API，不自动下单，不构成个性化投资建议。它会拉取免费日线市场数据，计算量化信号、质量股筛选、LOTS 仓位、风控退出条件和回测结果，并生成本地 HTML 报告或邮件摘要。
+本系统是本地研究和提醒工具，不接券商 API，不自动下单，不构成个性化投资建议。它会拉取免费日线市场数据，计算量化信号、质量股筛选、LOTS 仓位、风控退出条件和回测结果，并生成本地 HTML 报告或 Telegram/邮件摘要。
 
 ## 快速开始
 
@@ -82,10 +82,10 @@ docker compose up -d quant-ai-web
 http://127.0.0.1:8765
 ```
 
-每日邮件任务可以由 Windows Task Scheduler 调用：
+每日 Telegram 任务可以由 Windows Task Scheduler 调用：
 
 ```powershell
-.\scripts\windows_docker_daily_job.ps1 -ProjectRoot "C:\path\to\hey-quant" -SendEmail
+.\scripts\windows_docker_daily_job.ps1 -ProjectRoot "C:\path\to\hey-quant" -SendTelegram
 ```
 
 从 GitHub 拉取新版本并重新部署：
@@ -141,8 +141,8 @@ bin/quant-ai-local backtest --config config/default.yaml --offline-sample
 # 因子实验报告
 bin/quant-ai-local factor-test --config config/default.yaml --offline-sample --out outputs/factor_report.html
 
-# 生成报告并发送邮件
-bin/quant-ai-local run --config config/default.yaml --out outputs/latest_report.html --send-email
+# 生成报告并发送 Telegram
+bin/quant-ai-local run --config config/default.yaml --out outputs/latest_report.html --send-telegram
 ```
 
 ## 模块
@@ -157,7 +157,8 @@ bin/quant-ai-local run --config config/default.yaml --out outputs/latest_report.
 - `supervisor`: GPT/本地规则主管审查层，最后复核数据质量、仓位、止损、杠杆 ETF 风险和执行前检查。
 - `backtest`: 日线低频回测，包含滑点、下日成交和基准对比。
 - `factors`: 单因子实验，用于学习和验证动量、相对强度、RSI 等因子的有效性。
-- `emailer`: Outlook/SMTP 邮件摘要。
+- `telegram_notifier`: Telegram Bot 消息摘要。
+- `emailer`: Outlook/SMTP 邮件摘要备用。
 - `report`: 本地 HTML 报告。
 
 更完整的架构和学习路线见：
@@ -231,7 +232,32 @@ data:
 
 你暂时不付费 API 时，不需要设置 FMP key。以后接入付费源时，再把 `provider_priority` 和 `stop_after_paid_provider` 调整为付费源优先。
 
-## Outlook / SMTP 邮件
+## Telegram 提醒
+
+使用 Telegram Bot API。真实 token 只放在本机 `.env`，不要提交到 Git。
+
+先给 bot 发送 `/start`，然后在 `.env` 里设置：
+
+```text
+TELEGRAM_BOT_TOKEN=你的BotFather token
+TELEGRAM_CHAT_ID=你的chat id
+```
+
+如果不知道 chat id，先设置 `TELEGRAM_BOT_TOKEN`，然后运行：
+
+```bash
+bin/quant-ai-local telegram-chat-id --config config/default.yaml
+```
+
+发送命令：
+
+```bash
+bin/quant-ai-local run --config config/default.yaml --out outputs/latest_report.html --send-telegram
+```
+
+Telegram 会包含核心候选、持仓利润保护、风控候选、组合模式和数据质量提示。
+
+## Outlook / SMTP 邮件备用
 
 邮件配置通过环境变量读取，不写入代码：
 

@@ -38,6 +38,7 @@ def test_email_body_contains_core_sections(tmp_path: Path) -> None:
     body = build_email_body(result)
     assert "今日结论" in body
     assert "当前持仓检查" in body
+    assert "持仓保护触发" in body
     assert "Supervisor 审查" in body
 
 
@@ -52,4 +53,3 @@ def test_send_summary_email_uses_smtp_env(tmp_path: Path, monkeypatch) -> None:
     with patch("quant_ai_system.emailer.smtplib.SMTP", _FakeSMTP):
         send_summary_email(config, result)
     assert _FakeSMTP.sent
-

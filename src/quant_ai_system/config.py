@@ -79,6 +79,15 @@ class EmailConfig:
 
 
 @dataclass(frozen=True)
+class TelegramConfig:
+    enabled: bool = False
+    bot_token_env: str = "TELEGRAM_BOT_TOKEN"
+    chat_id_env: str = "TELEGRAM_CHAT_ID"
+    parse_mode: str = ""
+    disable_web_page_preview: bool = True
+
+
+@dataclass(frozen=True)
 class RiskConfig:
     profile: str = "aggressive"
     holding_style: str = "concentrated_position"
@@ -98,6 +107,12 @@ class RiskConfig:
     portfolio_drawdown_defensive: float = 0.12
     portfolio_drawdown_stop_new: float = 0.15
     earnings_profit_cushion: float = 0.08
+    profit_protection_min_gain: float = 0.12
+    profit_giveback_watch: float = 0.25
+    profit_giveback_trim: float = 0.35
+    profit_giveback_exit: float = 0.55
+    profit_floor_keep_ratio: float = 0.50
+    profit_trailing_atr_multiple: float = 2.5
 
 
 @dataclass(frozen=True)
@@ -143,6 +158,7 @@ class AppConfig:
     data: DataConfig
     storage: StorageConfig
     email: EmailConfig
+    telegram: TelegramConfig
     risk: RiskConfig
     backtest: BacktestConfig
     report: ReportConfig
@@ -171,6 +187,7 @@ def load_config(path: str | Path) -> AppConfig:
         data=DataConfig(**raw.get("data", {})),
         storage=StorageConfig(**raw.get("storage", {})),
         email=EmailConfig(**raw.get("email", {})),
+        telegram=TelegramConfig(**raw.get("telegram", {})),
         risk=RiskConfig(**raw.get("risk", {})),
         backtest=BacktestConfig(**raw.get("backtest", {})),
         report=ReportConfig(**raw.get("report", {})),

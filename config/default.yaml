@@ -65,6 +65,13 @@ email:
   to_addrs_env: SMTP_TO
   subject_prefix: "[Quant AI]"
 
+telegram:
+  enabled: true
+  bot_token_env: TELEGRAM_BOT_TOKEN
+  chat_id_env: TELEGRAM_CHAT_ID
+  parse_mode: ""
+  disable_web_page_preview: true
+
 risk:
   profile: aggressive
   holding_style: concentrated_position
@@ -84,6 +91,12 @@ risk:
   portfolio_drawdown_defensive: 0.12
   portfolio_drawdown_stop_new: 0.15
   earnings_profit_cushion: 0.08
+  profit_protection_min_gain: 0.12
+  profit_giveback_watch: 0.25
+  profit_giveback_trim: 0.35
+  profit_giveback_exit: 0.55
+  profit_floor_keep_ratio: 0.50
+  profit_trailing_atr_multiple: 2.5
 
 backtest:
   years: 10

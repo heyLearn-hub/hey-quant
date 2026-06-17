@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo>
-    <Description>Hey Quant Docker daily report and email reminder.</Description>
+    <Description>Hey Quant Docker daily report and Telegram reminder.</Description>
   </RegistrationInfo>
   <Triggers>
     <CalendarTrigger>
@@ -32,9 +32,8 @@
   <Actions Context="Author">
     <Exec>
       <Command>powershell.exe</Command>
-      <Arguments>-NoProfile -ExecutionPolicy Bypass -File "__PROJECT_ROOT__\scripts\windows_docker_daily_job.ps1" -ProjectRoot "__PROJECT_ROOT__" -SendEmail</Arguments>
+      <Arguments>-NoProfile -ExecutionPolicy Bypass -File "__PROJECT_ROOT__\scripts\windows_docker_daily_job.ps1" -ProjectRoot "__PROJECT_ROOT__" -SendTelegram</Arguments>
       <WorkingDirectory>__PROJECT_ROOT__</WorkingDirectory>
     </Exec>
   </Actions>
 </Task>
-
