@@ -2,7 +2,9 @@ param(
   [string]$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path,
   [string]$Branch = "main",
   [switch]$SkipPull,
-  [switch]$SkipSmokeTest
+  [switch]$SkipSmokeTest,
+  [switch]$OnlyWhenRemoteChanged,
+  [int]$LockMaxAgeMinutes = 120
 )
 
 $ErrorActionPreference = "Stop"
@@ -13,12 +15,25 @@ if (-not (Test-Path ".git")) {
 }
 
 New-Item -ItemType Directory -Force -Path "logs" | Out-Null
+$lockFile = Join-Path "logs" "windows_docker_update.lock"
+if (Test-Path $lockFile) {
+  $lockAge = (Get-Date) - (Get-Item $lockFile).LastWriteTime
+  if ($lockAge.TotalMinutes -lt $LockMaxAgeMinutes) {
+    Write-Host "Another update appears to be running. Lock file: $lockFile"
+    exit 0
+  }
+  Write-Host "Removing stale update lock: $lockFile"
+  Remove-Item -Force $lockFile
+}
+New-Item -ItemType File -Path $lockFile -Force -Value "pid=$PID started=$(Get-Date -Format o)" | Out-Null
+
 $logFile = Join-Path "logs" ("windows_docker_update_{0}.log" -f (Get-Date -Format "yyyyMMdd_HHmmss"))
 Start-Transcript -Path $logFile | Out-Null
 
 try {
   Write-Host "Project root: $ProjectRoot"
   Write-Host "Target branch: $Branch"
+  Write-Host "Only when remote changed: $OnlyWhenRemoteChanged"
 
   docker info | Out-Null
 
@@ -32,6 +47,16 @@ try {
 
     git fetch origin $Branch
     git checkout $Branch
+    if ($OnlyWhenRemoteChanged) {
+      $currentCommit = (git rev-parse HEAD).Trim()
+      $remoteCommit = (git rev-parse "origin/$Branch").Trim()
+      Write-Host "Local commit:  $currentCommit"
+      Write-Host "Remote commit: $remoteCommit"
+      if ($currentCommit -eq $remoteCommit) {
+        Write-Host "No remote change detected. Skipping Docker rebuild and restart."
+        return
+      }
+    }
     git pull --ff-only origin $Branch
   }
 
@@ -54,5 +79,8 @@ try {
   Write-Host "Log file: $logFile"
 }
 finally {
+  if (Test-Path $lockFile) {
+    Remove-Item -Force $lockFile
+  }
   Stop-Transcript | Out-Null
 }

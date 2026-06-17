@@ -2,7 +2,7 @@
 
 This document is the handoff checklist for moving day-to-day operation from the Mac development machine to the Windows host.
 
-For normal code updates, use `scripts/windows_docker_update.ps1`; do not repeat this handoff checklist. This file is mainly for first setup or for a new Windows Codex thread that needs project context.
+For normal code updates, use `scripts/windows_docker_update.ps1` or the auto-update scheduled task; do not repeat this handoff checklist. This file is mainly for first setup or for a new Windows Codex thread that needs project context.
 
 ## Target Shape
 
@@ -123,6 +123,14 @@ After the Mac side pushes changes to GitHub, run on Windows:
 ```powershell
 .\scripts\windows_docker_update.ps1 -ProjectRoot "C:\Users\<you>\Documents\hey-quant"
 ```
+
+To make this automatic after each push, import:
+
+```text
+scripts/windows_docker_auto_update_task.xml
+```
+
+Replace `__PROJECT_ROOT__` with the real Windows path before importing. The task checks GitHub every 10 minutes and deploys only when `origin/main` has a new commit.
 
 The script performs:
 

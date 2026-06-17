@@ -124,6 +124,7 @@ Deliverables:
 - Windows Task Scheduler Docker XML template. `Done`
 - Docker deployment documentation. `Done`
 - Windows Docker update/redeploy helper. `Done on Mac`
+- Windows auto-update Task Scheduler template. `Done on Mac`
 - Docker Compose config validation. `Done on Mac`
 - Local web service available through Docker. `Done on Mac, pending target Windows verification`
 - Daily scheduled report command through Docker. `Done on Mac, pending target Windows verification`
@@ -135,6 +136,7 @@ Acceptance criteria:
 - `docker compose --profile job run --rm quant-ai-job run --config config/default.yaml --offline-sample --out outputs/docker_sample_report.html` succeeds.
 - Windows Task Scheduler can run `scripts/windows_docker_daily_job.ps1` with `-SendTelegram`.
 - Windows host can pull from GitHub and redeploy with `scripts/windows_docker_update.ps1`.
+- Windows host can poll GitHub and redeploy only when `origin/main` changes.
 - `data/`, `outputs/`, and `logs/` persist outside the container.
 - `.env` is loaded at runtime and never baked into the image.
 

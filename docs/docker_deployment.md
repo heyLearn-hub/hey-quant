@@ -107,9 +107,38 @@ Useful options:
 
 ```powershell
 .\scripts\windows_docker_update.ps1 -ProjectRoot "C:\path\to\hey-quant" -Branch main
+.\scripts\windows_docker_update.ps1 -ProjectRoot "C:\path\to\hey-quant" -OnlyWhenRemoteChanged
 .\scripts\windows_docker_update.ps1 -ProjectRoot "C:\path\to\hey-quant" -SkipPull
 .\scripts\windows_docker_update.ps1 -ProjectRoot "C:\path\to\hey-quant" -SkipSmokeTest
 ```
+
+## Auto Update After Push
+
+The Windows host can poll GitHub and redeploy automatically after every Mac-side push. This avoids exposing a public webhook endpoint from the home Windows machine.
+
+Import this Task Scheduler template:
+
+```text
+scripts/windows_docker_auto_update_task.xml
+```
+
+Before importing, replace `__PROJECT_ROOT__` with the absolute Windows project path.
+
+The task runs every 10 minutes and calls:
+
+```powershell
+.\scripts\windows_docker_update.ps1 -ProjectRoot "C:\path\to\hey-quant" -OnlyWhenRemoteChanged
+```
+
+Behavior:
+
+```text
+fetch origin/main
+if remote commit equals local commit: stop
+if remote commit is new: pull, rebuild Docker, restart web service, run smoke test
+```
+
+The update script uses a lock file under `logs/` so overlapping scheduled runs do not deploy at the same time.
 
 For remote operation, prefer one of these:
 

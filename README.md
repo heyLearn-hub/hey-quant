@@ -94,6 +94,8 @@ http://127.0.0.1:8765
 .\scripts\windows_docker_update.ps1 -ProjectRoot "C:\path\to\hey-quant"
 ```
 
+也可以导入 `scripts/windows_docker_auto_update_task.xml`，让 Windows 每 10 分钟检查 GitHub；只有发现 `origin/main` 有新 commit 时才自动 pull 和重新部署。
+
 也可以使用非 Docker 的 PowerShell 本地 Python 方式：
 
 ```powershell
