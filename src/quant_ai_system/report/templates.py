@@ -39,6 +39,7 @@ REPORT_TEMPLATE = """<!doctype html>
       <div class="tile">核心候选 <b>{{ summary.core_count }}</b></div>
       <div class="tile">减仓/退出候选 <b>{{ summary.risk_count }}</b></div>
       <div class="tile">LOTS 偏离 <b>{{ summary.position_drift_count }}</b></div>
+      <div class="tile">新闻风险 <b>{{ summary.news_risk_count }}</b></div>
     </div>
 
     <section>
@@ -165,6 +166,28 @@ REPORT_TEMPLATE = """<!doctype html>
     </section>
 
     <section>
+      <h2>FMP 新闻面 / 研究线索</h2>
+      <table>
+        <thead><tr><th>Ticker</th><th>新闻数</th><th>最新时间</th><th>催化标签</th><th>风险标签</th><th>摘要</th><th>标题</th></tr></thead>
+        <tbody>
+          {% for n in news_briefs %}
+          <tr>
+            <td><b>{{ n.ticker }}</b></td>
+            <td>{{ n.article_count }}</td>
+            <td>{{ n.latest_at or "无" }}</td>
+            <td>{{ ", ".join(n.catalyst_flags) if n.catalyst_flags else "无" }}</td>
+            <td>{{ ", ".join(n.risk_flags) if n.risk_flags else "无" }}</td>
+            <td>{{ n.summary }}</td>
+            <td>{% if n.headlines %}{% for h in n.headlines[:3] %}<div>{{ h }}</div>{% endfor %}{% else %}<span class="muted">{{ n.data_issue or "无近期新闻" }}</span>{% endif %}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="muted">新闻层未运行：离线样本模式、未配置 FMP key，或当前没有持仓/候选需要复核。</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section>
       <h2>完整观察池与 LOTS 仓位</h2>
       <table>
         <thead><tr><th>Ticker</th><th>动作</th><th>综合分</th><th>技术分</th><th>质量分</th><th>价格</th><th>初始股数</th><th>目标股数</th><th>止损参考</th><th>约束</th><th>风控说明</th></tr></thead>
@@ -224,7 +247,7 @@ REPORT_TEMPLATE = """<!doctype html>
 
     <section>
       <h2>Serenity Alpha 研究增强层</h2>
-      <p class="muted">当前版本保留新闻/产业需求输入接口：新闻不会自动替代量化信号，只能把“已发生的需求变化 -> 财务传导 -> 验证指标 -> 仓位条件”写入后续研究记录。</p>
+      <p class="muted">新闻不会自动替代量化信号，只用于把“已发生的需求变化 -> 财务传导 -> 验证指标 -> 仓位条件”转成研究线索。下一步会把 press release、财报日历和 AI 主管审查连接起来。</p>
     </section>
 
     {% if issues %}

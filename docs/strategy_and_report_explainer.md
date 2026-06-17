@@ -13,6 +13,7 @@ market data
   -> LOTS sizing
   -> real position drift check
   -> profit protection / exit rules
+  -> FMP news research check
   -> AI/local supervisor review
   -> HTML report + Telegram alert
 ```
@@ -32,6 +33,33 @@ open / high / low / close / volume
 ```
 
 If paid data fails, the system can fall back to free providers. If all live providers fail, sample data is clearly marked as non-tradable.
+
+## News / Research Layer
+
+The news layer uses FMP stock news after technical and quality signals already exist. It checks:
+
+```text
+current real positions
+top-ranked signal candidates
+```
+
+It does not create buy signals by itself. It adds research context:
+
+```text
+catalyst flags: AI, data center, GPU, cloud, analyst upgrade, earnings beat, guidance raise
+risk flags: downgrade, guidance cut, investigation, lawsuit, antitrust, export control, delay, margin pressure
+```
+
+Interpretation:
+
+```text
+strong technical signal + clean news = candidate still valid
+strong technical signal + risk news = manual review before adding
+weak technical signal + good news = watch, not buy
+holding + risk news = check stop/profit protection first
+```
+
+The goal is to use FMP Starter's news coverage as a supervisor input and research queue, not as a headline-trading system.
 
 ## Technical Indicators
 
@@ -290,4 +318,3 @@ earnings calendar risk is not fully automated
 ```
 
 Use it first for observation, small-lot decisions, and risk discipline before trusting it with larger size.
-

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from quant_ai_system.config import SupervisorConfig
+from quant_ai_system.research import NewsBrief
 from quant_ai_system.signals import SignalResult
 
 
@@ -47,10 +48,16 @@ REVIEW_SCHEMA: dict[str, Any] = {
 }
 
 
-def _signal_payload(signals: list[SignalResult], data_quality_issues: list[object]) -> list[dict[str, Any]]:
+def _signal_payload(
+    signals: list[SignalResult],
+    data_quality_issues: list[object],
+    news_briefs: list[NewsBrief] | None = None,
+) -> list[dict[str, Any]]:
     issue_count = len(data_quality_issues)
+    news_by_ticker = {brief.ticker: brief for brief in news_briefs or []}
     payload = []
     for signal in signals:
+        news = news_by_ticker.get(signal.ticker)
         payload.append(
             {
                 "ticker": signal.ticker,
@@ -69,6 +76,16 @@ def _signal_payload(signals: list[SignalResult], data_quality_issues: list[objec
                 "binding_constraint": signal.position.binding_constraint,
                 "risk_notes": signal.risk.notes,
                 "data_quality_issue_count": issue_count,
+                "news": {
+                    "article_count": news.article_count,
+                    "latest_at": news.latest_at,
+                    "catalyst_flags": news.catalyst_flags,
+                    "risk_flags": news.risk_flags,
+                    "headline": news.headlines[0] if news.headlines else "",
+                    "data_issue": news.data_issue,
+                }
+                if news
+                else {},
             }
         )
     return payload
@@ -78,14 +95,21 @@ def local_supervisor_review(
     signals: list[SignalResult],
     config: SupervisorConfig,
     data_quality_issues: list[object],
+    news_briefs: list[NewsBrief] | None = None,
 ) -> list[SupervisorDecision]:
     decisions: list[SupervisorDecision] = []
     data_blocked = any(getattr(issue, "provider", "") == "sample" for issue in data_quality_issues)
+    news_by_ticker = {brief.ticker: brief for brief in news_briefs or []}
     ranked = sorted(signals, key=lambda item: item.score, reverse=True)
     approvals = 0
     for signal in ranked:
         blockers: list[str] = []
         checks = ["确认行情数据不是样本/过期数据", "确认财报日期和重大新闻", "确认止损价和可接受亏损金额"]
+        news = news_by_ticker.get(signal.ticker)
+        if news and news.risk_flags:
+            checks.append(f"复核FMP新闻风险: {', '.join(news.risk_flags[:3])}")
+            if "加仓" in signal.action or "小仓" in signal.action:
+                blockers.append("候选股存在FMP新闻风险标记，执行前需要人工确认")
         if data_blocked:
             blockers.append("当前报告使用样本或非实时数据，不能作为执行依据")
         if signal.score < config.min_approval_score:
@@ -97,7 +121,7 @@ def local_supervisor_review(
             final_action = signal.action
             blockers.append("量化层已触发减仓/退出")
         elif blockers:
-            decision = "manual_review" if data_blocked else "hold"
+            decision = "manual_review" if data_blocked or (news and news.risk_flags) else "hold"
             final_action = "暂缓"
         elif approvals < config.max_core_approvals and ("加仓" in signal.action or "小仓" in signal.action):
             decision = "approve_for_consideration"
@@ -142,12 +166,17 @@ def _parse_reviews(raw_text: str, provider: str) -> list[SupervisorDecision]:
     ]
 
 
-def _supervisor_prompt(config: SupervisorConfig, signals: list[SignalResult], data_quality_issues: list[object]) -> str:
-    payload = _signal_payload(signals, data_quality_issues)
+def _supervisor_prompt(
+    config: SupervisorConfig,
+    signals: list[SignalResult],
+    data_quality_issues: list[object],
+    news_briefs: list[NewsBrief] | None = None,
+) -> str:
+    payload = _signal_payload(signals, data_quality_issues, news_briefs)
     return (
         "Act as a public-equity investment committee supervisor for a small, concentrated US tech/AI portfolio. "
         "This is research support, not personalized financial advice or automatic execution. "
-        "Approve only signals that pass data quality, trend, quality, sizing, stop-loss, liquidity, and concentration checks. "
+        "Approve only signals that pass data quality, trend, quality, sizing, stop-loss, liquidity, news-risk, and concentration checks. "
         "Return JSON only with this exact shape: "
         '{"reviews":[{"ticker":"MSFT","decision":"approve_for_consideration|hold|reject|manual_review",'
         '"approval_score":0,"final_action":"string","rationale":"string","blockers":[],"required_checks":[]}]}. '
@@ -159,6 +188,7 @@ def _chat_completion_supervisor_review(
     signals: list[SignalResult],
     config: SupervisorConfig,
     data_quality_issues: list[object],
+    news_briefs: list[NewsBrief] | None = None,
     *,
     provider: str,
     api_key: str,
@@ -171,7 +201,7 @@ def _chat_completion_supervisor_review(
         model=config.model,
         messages=[
             {"role": "system", "content": "You are a strict investment risk supervisor. Return valid JSON only."},
-            {"role": "user", "content": _supervisor_prompt(config, signals, data_quality_issues)},
+            {"role": "user", "content": _supervisor_prompt(config, signals, data_quality_issues, news_briefs)},
         ],
         response_format={"type": "json_object"},
         temperature=0.2,
@@ -184,17 +214,19 @@ def openai_supervisor_review(
     signals: list[SignalResult],
     config: SupervisorConfig,
     data_quality_issues: list[object],
+    news_briefs: list[NewsBrief] | None = None,
 ) -> list[SupervisorDecision]:
     api_key = os.environ.get(config.openai_api_key_env, "").strip()
     if not api_key:
         raise ValueError(f"{config.openai_api_key_env} is missing")
-    return _chat_completion_supervisor_review(signals, config, data_quality_issues, provider="openai", api_key=api_key)
+    return _chat_completion_supervisor_review(signals, config, data_quality_issues, news_briefs, provider="openai", api_key=api_key)
 
 
 def deepseek_supervisor_review(
     signals: list[SignalResult],
     config: SupervisorConfig,
     data_quality_issues: list[object],
+    news_briefs: list[NewsBrief] | None = None,
 ) -> list[SupervisorDecision]:
     api_key = os.environ.get(config.deepseek_api_key_env, "").strip()
     if not api_key:
@@ -203,6 +235,7 @@ def deepseek_supervisor_review(
         signals,
         config,
         data_quality_issues,
+        news_briefs,
         provider="deepseek",
         api_key=api_key,
         base_url=config.deepseek_base_url,
@@ -229,10 +262,11 @@ def _fallback_after_api_failure(
     signals: list[SignalResult],
     config: SupervisorConfig,
     data_quality_issues: list[object],
+    news_briefs: list[NewsBrief] | None,
     provider: str,
     exc: Exception,
 ) -> list[SupervisorDecision]:
-    fallback = local_supervisor_review(signals, config, data_quality_issues)
+    fallback = local_supervisor_review(signals, config, data_quality_issues, news_briefs)
     return [
         SupervisorDecision(
             ticker=item.ticker,
@@ -252,24 +286,25 @@ def run_supervisor_review(
     signals: list[SignalResult],
     config: SupervisorConfig,
     data_quality_issues: list[object],
+    news_briefs: list[NewsBrief] | None = None,
 ) -> list[SupervisorDecision]:
     if not config.enabled:
         return []
     provider = config.provider.lower().strip()
     if provider == "openai":
         if not os.environ.get(config.openai_api_key_env):
-            return _missing_api_reviews(signals, "openai", config.openai_api_key_env) if config.require_api else local_supervisor_review(signals, config, data_quality_issues)
+            return _missing_api_reviews(signals, "openai", config.openai_api_key_env) if config.require_api else local_supervisor_review(signals, config, data_quality_issues, news_briefs)
         try:
-            return openai_supervisor_review(signals, config, data_quality_issues)
+            return openai_supervisor_review(signals, config, data_quality_issues, news_briefs)
         except Exception as exc:
-            return _fallback_after_api_failure(signals, config, data_quality_issues, "openai", exc)
+            return _fallback_after_api_failure(signals, config, data_quality_issues, news_briefs, "openai", exc)
     if provider == "deepseek":
         if not os.environ.get(config.deepseek_api_key_env):
-            return _missing_api_reviews(signals, "deepseek", config.deepseek_api_key_env) if config.require_api else local_supervisor_review(signals, config, data_quality_issues)
+            return _missing_api_reviews(signals, "deepseek", config.deepseek_api_key_env) if config.require_api else local_supervisor_review(signals, config, data_quality_issues, news_briefs)
         try:
-            return deepseek_supervisor_review(signals, config, data_quality_issues)
+            return deepseek_supervisor_review(signals, config, data_quality_issues, news_briefs)
         except Exception as exc:
-            return _fallback_after_api_failure(signals, config, data_quality_issues, "deepseek", exc)
+            return _fallback_after_api_failure(signals, config, data_quality_issues, news_briefs, "deepseek", exc)
     if config.require_api:
         return _missing_api_reviews(signals, provider or "unknown", "SUPERVISOR_API_KEY")
-    return local_supervisor_review(signals, config, data_quality_issues)
+    return local_supervisor_review(signals, config, data_quality_issues, news_briefs)

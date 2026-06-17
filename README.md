@@ -258,10 +258,19 @@ data:
 bin/quant-ai-local data-check --config config/default.yaml --provider fmp
 ```
 
+验证 FMP 新闻覆盖：
+
+```bash
+bin/quant-ai-local news-check --config config/default.yaml --tickers NVDA,MSFT,TSLA
+```
+
+新闻层只扫描已有持仓和高分候选，用来标记催化和风险，不会单独生成买入信号。
+
 Windows Docker：
 
 ```powershell
 docker compose --profile job run --rm quant-ai-job data-check --config config/default.yaml --provider fmp
+docker compose --profile job run --rm quant-ai-job news-check --config config/default.yaml --tickers NVDA,MSFT,TSLA
 ```
 
 ## Telegram 提醒
@@ -287,7 +296,7 @@ bin/quant-ai-local telegram-chat-id --config config/default.yaml
 bin/quant-ai-local run --config config/default.yaml --out outputs/latest_report.html --send-telegram
 ```
 
-Telegram 会包含核心候选、持仓利润保护、风控候选、组合模式和数据质量提示。
+Telegram 会包含核心候选、持仓利润保护、风控候选、新闻风险、组合模式和数据质量提示。
 
 ## Outlook / SMTP 邮件备用
 

@@ -33,6 +33,7 @@ def test_run_system_writes_html_report(tmp_path: Path) -> None:
     assert "GPT / Supervisor 最终审查" in html
     assert "真实仓位 vs LOTS" in html
     assert "利润保护与退出规则" in html
+    assert "FMP 新闻面 / 研究线索" in html
     assert "完整观察池与 LOTS 仓位" in html
     assert "Public Equity 风险解释字段" in html
     assert len(result.signals) > 0

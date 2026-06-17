@@ -13,6 +13,7 @@ from quant_ai_system.position_drift import PositionDriftReview, evaluate_positio
 from quant_ai_system.quality import assess_quality
 from quant_ai_system.report.html import render_report
 from quant_ai_system.portfolio_store import StoredPosition, list_positions
+from quant_ai_system.research import NewsBrief, build_news_briefs
 from quant_ai_system.risk import PortfolioRiskState, evaluate_portfolio_drawdown
 from quant_ai_system.signals import SignalResult, evaluate_signal
 from quant_ai_system.supervisor import SupervisorDecision, run_supervisor_review
@@ -28,6 +29,7 @@ class RunResult:
     positions: list[StoredPosition]
     exit_reviews: list[PositionExitReview]
     drift_reviews: list[PositionDriftReview]
+    news_briefs: list[NewsBrief]
     report_path: Path
 
 
@@ -75,8 +77,15 @@ def run_system(config: AppConfig, out_path: str | Path, offline_sample: bool = F
         portfolio_risk = PortfolioRiskState(0.0, "unknown", True, ["回测净值曲线不足，暂不判断组合模式"])
     else:
         portfolio_risk = evaluate_portfolio_drawdown(backtest.equity_curves["full_system"], config.risk)
-    supervisor_reviews = run_supervisor_review(signals, config.supervisor, market_data.issues)
     positions = list_positions(config.storage.db_path)
+    news_tickers = list(
+        dict.fromkeys(
+            [position.ticker for position in positions]
+            + [signal.ticker for signal in sorted(signals, key=lambda item: item.score, reverse=True)]
+        )
+    )[: config.research.news_max_tickers]
+    news_briefs = [] if offline_sample else build_news_briefs(news_tickers, config.research)
+    supervisor_reviews = run_supervisor_review(signals, config.supervisor, market_data.issues, news_briefs)
     exit_reviews = evaluate_positions_exit(positions, indicators_by_ticker, config.risk, signals)
     drift_reviews = evaluate_positions_drift(positions, signals, exit_reviews, config.account, config.risk)
     report_path = render_report(
@@ -91,5 +100,17 @@ def run_system(config: AppConfig, out_path: str | Path, offline_sample: bool = F
         positions=positions,
         exit_reviews=exit_reviews,
         drift_reviews=drift_reviews,
+        news_briefs=news_briefs,
     )
-    return RunResult(market_data, signals, backtest, portfolio_risk, supervisor_reviews, positions, exit_reviews, drift_reviews, report_path)
+    return RunResult(
+        market_data,
+        signals,
+        backtest,
+        portfolio_risk,
+        supervisor_reviews,
+        positions,
+        exit_reviews,
+        drift_reviews,
+        news_briefs,
+        report_path,
+    )

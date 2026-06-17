@@ -8,6 +8,7 @@ from quant_ai_system.emailer import send_summary_email
 from quant_ai_system.engine import run_system
 from quant_ai_system.data import check_provider_data, get_market_data, make_sample_market_data
 from quant_ai_system.factors import run_factor_experiment, write_factor_report
+from quant_ai_system.research import build_news_briefs
 from quant_ai_system.server import install_launch_agent, serve, service_status, uninstall_launch_agent
 from quant_ai_system.telegram_notifier import fetch_telegram_updates, send_telegram_message
 
@@ -70,6 +71,10 @@ def _build_parser() -> argparse.ArgumentParser:
     data_check.add_argument("--config", default="config/default.yaml")
     data_check.add_argument("--provider", default="fmp", choices=["fmp", "yfinance", "stooq"])
     data_check.add_argument("--tickers", default="", help="Comma-separated ticker override. Defaults to configured universe plus benchmarks.")
+
+    news_check = sub.add_parser("news-check")
+    news_check.add_argument("--config", default="config/default.yaml")
+    news_check.add_argument("--tickers", default="", help="Comma-separated ticker override. Defaults to configured universe.")
     return parser
 
 
@@ -131,6 +136,24 @@ def main(argv: list[str] | None = None) -> int:
             status = "OK" if item.ok else "CHECK"
             print(f"{status}\t{item.ticker}\trows={item.rows}\tfirst={first}\tlast={last}\tclose={close}\t{item.message}")
         return 1 if failures else 0
+
+    if args.command == "news-check":
+        if args.tickers.strip():
+            tickers = [ticker.strip().upper() for ticker in args.tickers.split(",") if ticker.strip()]
+        else:
+            tickers = config.universe.tickers + config.universe.leveraged_tickers
+        briefs = build_news_briefs(tickers, config.research)
+        failures = [brief for brief in briefs if brief.data_issue]
+        print(f"Provider: {config.research.news_provider}")
+        print(f"Tickers: {len(briefs)}")
+        print(f"With news: {sum(1 for brief in briefs if brief.article_count > 0)}")
+        print(f"With risk flags: {sum(1 for brief in briefs if brief.risk_flags)}")
+        for brief in briefs:
+            risk = ",".join(brief.risk_flags) if brief.risk_flags else "-"
+            catalyst = ",".join(brief.catalyst_flags) if brief.catalyst_flags else "-"
+            headline = brief.headlines[0] if brief.headlines else brief.data_issue or "-"
+            print(f"{brief.ticker}\tnews={brief.article_count}\tcatalyst={catalyst}\trisk={risk}\t{headline}")
+        return 1 if failures and all(brief.article_count == 0 for brief in briefs) else 0
 
     if args.command == "show-config":
         print(f"NAV: {config.account.nav:,.0f} {config.account.currency}")

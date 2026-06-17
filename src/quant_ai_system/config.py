@@ -131,6 +131,16 @@ class ReportConfig:
 
 
 @dataclass(frozen=True)
+class ResearchConfig:
+    enabled: bool = True
+    news_provider: str = "fmp"
+    news_api_key_env: str = "FMP_API_KEY"
+    news_limit_per_ticker: int = 5
+    news_max_tickers: int = 12
+    news_lookback_days: int = 14
+
+
+@dataclass(frozen=True)
 class QualityConfig:
     enabled: bool = True
     technical_weight: float = 0.65
@@ -165,6 +175,7 @@ class AppConfig:
     risk: RiskConfig
     backtest: BacktestConfig
     report: ReportConfig
+    research: ResearchConfig
     quality: QualityConfig
     supervisor: SupervisorConfig
 
@@ -194,6 +205,7 @@ def load_config(path: str | Path) -> AppConfig:
         risk=RiskConfig(**raw.get("risk", {})),
         backtest=BacktestConfig(**raw.get("backtest", {})),
         report=ReportConfig(**raw.get("report", {})),
+        research=ResearchConfig(**raw.get("research", {})),
         quality=QualityConfig(**raw.get("quality", {})),
         supervisor=SupervisorConfig(**raw.get("supervisor", {})),
     )

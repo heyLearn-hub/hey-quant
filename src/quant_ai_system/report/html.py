@@ -9,6 +9,7 @@ from quant_ai_system.config import AppConfig
 from quant_ai_system.exit_rules import PositionExitReview
 from quant_ai_system.position_drift import PositionDriftReview
 from quant_ai_system.report.templates import REPORT_TEMPLATE
+from quant_ai_system.research import NewsBrief
 from quant_ai_system.risk import PortfolioRiskState
 from quant_ai_system.signals import SignalResult
 from quant_ai_system.supervisor import SupervisorDecision
@@ -55,6 +56,7 @@ def render_report(
     positions: list[StoredPosition] | None = None,
     exit_reviews: list[PositionExitReview] | None = None,
     drift_reviews: list[PositionDriftReview] | None = None,
+    news_briefs: list[NewsBrief] | None = None,
 ) -> Path:
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -64,6 +66,7 @@ def render_report(
     positions = positions or []
     exit_reviews = exit_reviews or []
     drift_reviews = drift_reviews or []
+    news_briefs = news_briefs or []
     review_by_ticker = {review.ticker: review for review in supervisor_reviews}
     signal_by_ticker = {row["signal"].ticker: row["signal"] for row in signal_rows}
     exit_review_by_ticker = {review.ticker: review for review in exit_reviews}
@@ -85,6 +88,7 @@ def render_report(
         "risk_count": sum(1 for s in signals if "减仓" in s.action or "退出" in s.action),
         "position_exit_count": sum(1 for r in exit_reviews if r.severity >= 50),
         "position_drift_count": sum(1 for r in drift_reviews if r.severity >= 50),
+        "news_risk_count": sum(1 for brief in news_briefs if brief.risk_flags),
         "core_count": len(core_rows),
     }
     html = Template(REPORT_TEMPLATE).render(
@@ -100,6 +104,7 @@ def render_report(
         exit_review_by_ticker=exit_review_by_ticker,
         drift_reviews=drift_review_rows,
         drift_review_by_ticker=drift_review_by_ticker,
+        news_briefs=news_briefs,
         metrics=backtest.metrics,
         portfolio_risk=portfolio_risk,
         issues=issues,

@@ -105,6 +105,14 @@ backtest:
   rebalance: weekly
   max_positions: 2
 
+research:
+  enabled: true
+  news_provider: fmp
+  news_api_key_env: FMP_API_KEY
+  news_limit_per_ticker: 5
+  news_max_tickers: 12
+  news_lookback_days: 14
+
 quality:
   enabled: true
   technical_weight: 0.65

@@ -58,12 +58,15 @@ def build_telegram_message(result: RunResult) -> str:
     exit_items = [review for review in result.exit_reviews if review.severity >= 50]
     drift_items = [review for review in result.drift_reviews if review.severity >= 50]
     risk_signals = [signal for signal in result.signals if "减仓" in signal.action or "退出" in signal.action]
+    news_risks = [brief for brief in result.news_briefs if brief.risk_flags]
+    news_catalysts = [brief for brief in result.news_briefs if brief.catalyst_flags]
 
     lines = [
         "Quant AI 今日提醒",
         f"核心候选: {', '.join(signal.ticker for signal in core) if core else '无'}",
         f"持仓保护触发: {', '.join(review.ticker for review in exit_items) if exit_items else '无'}",
         f"LOTS 偏离: {', '.join(review.ticker for review in drift_items) if drift_items else '无'}",
+        f"新闻风险: {', '.join(brief.ticker for brief in news_risks[:5]) if news_risks else '无'}",
         f"观察池风控候选: {', '.join(signal.ticker for signal in risk_signals[:8]) if risk_signals else '无'}",
         f"组合模式: {result.portfolio_risk.mode}",
         f"数据质量问题: {len(result.market_data.issues)}",
@@ -91,6 +94,15 @@ def build_telegram_message(result: RunResult) -> str:
         lines.extend(["", "核心候选"])
         for signal in core:
             lines.append(f"- {signal.ticker}: {signal.action}, 综合分 {signal.score:.1f}, 止损参考 {signal.position.stop_price:.2f}")
+
+    if news_risks or news_catalysts:
+        lines.extend(["", "FMP 新闻面"])
+        for brief in (news_risks + [item for item in news_catalysts if item.ticker not in {risk.ticker for risk in news_risks}])[:5]:
+            risk = ", ".join(brief.risk_flags[:3]) if brief.risk_flags else "无"
+            catalyst = ", ".join(brief.catalyst_flags[:3]) if brief.catalyst_flags else "无"
+            lines.append(f"- {brief.ticker}: 新闻 {brief.article_count} 条, 催化 {catalyst}, 风险 {risk}")
+            if brief.headlines:
+                lines.append(f"  {brief.headlines[0]}")
 
     if result.positions and not exit_items:
         lines.extend(["", "当前持仓"])

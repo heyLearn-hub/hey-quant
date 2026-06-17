@@ -299,9 +299,12 @@ Deliverables:
 - FMP Starter selected as paid provider. `Done`
 - Credentials loaded through `.env` / `FMP_API_KEY`. `Done`
 - Coverage test command for every configured ticker. `Done`
+- FMP stock news research check command. `Done`
+- HTML/Telegram/email news risk summary. `Done`
 - Adjusted price validation. `Pending`
 - ETF availability validation. `Pending`
 - Historical depth validation.
+- Press release / earnings calendar integration. `Pending`
 - Provider comparison report.
 - Free data source fallback retained. `Done`
 

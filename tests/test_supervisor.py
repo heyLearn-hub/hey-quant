@@ -7,6 +7,7 @@ import pandas as pd
 from quant_ai_system.data.providers import DataIssue
 from quant_ai_system.indicators import build_indicators
 from quant_ai_system.quality import QualityAssessment
+from quant_ai_system.research import NewsBrief
 from quant_ai_system.signals import evaluate_signal
 from quant_ai_system.config import AccountConfig, QualityConfig, RiskConfig
 from quant_ai_system.supervisor import deepseek_supervisor_review, local_supervisor_review, run_supervisor_review
@@ -81,6 +82,40 @@ def test_local_supervisor_can_approve_clean_high_score_signal() -> None:
 
     assert reviews[0].decision in {"approve_for_consideration", "hold"}
     assert reviews[0].provider == "local_rules"
+
+
+def test_local_supervisor_sends_news_risk_to_manual_review() -> None:
+    stock, benchmark = _uptrend_frame()
+    frame = build_indicators(stock, benchmark)
+    signal = evaluate_signal(
+        "MSFT",
+        frame,
+        AccountConfig(nav=17_870),
+        RiskConfig(),
+        QualityAssessment("MSFT", 95, "quality compounder", "buffett_quality"),
+        QualityConfig(technical_weight=0.0, quality_weight=1.0),
+    )
+    assert signal is not None
+
+    reviews = local_supervisor_review(
+        [signal],
+        SupervisorConfig(min_approval_score=70),
+        [],
+        [
+            NewsBrief(
+                ticker="MSFT",
+                article_count=1,
+                latest_at="2026-06-18T00:00:00Z",
+                headlines=["Microsoft faces antitrust investigation"],
+                catalyst_flags=[],
+                risk_flags=["antitrust", "investigation"],
+                summary="1 article; risk: antitrust, investigation",
+            )
+        ],
+    )
+
+    assert reviews[0].decision == "manual_review"
+    assert "新闻风险" in reviews[0].blockers[0]
 
 
 def test_deepseek_provider_falls_back_without_key(monkeypatch) -> None:

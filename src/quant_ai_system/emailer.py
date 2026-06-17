@@ -23,12 +23,15 @@ def build_email_body(result: RunResult) -> str:
     risk_items = [signal for signal in result.signals if "减仓" in signal.action or "退出" in signal.action]
     exit_items = [review for review in result.exit_reviews if review.severity >= 50]
     drift_items = [review for review in result.drift_reviews if review.severity >= 50]
+    news_risks = [brief for brief in result.news_briefs if brief.risk_flags]
+    news_catalysts = [brief for brief in result.news_briefs if brief.catalyst_flags]
     lines = [
         "今日结论",
         f"- 核心候选: {', '.join(signal.ticker for signal in core[:2]) if core else '无'}",
         f"- 风控候选: {', '.join(signal.ticker for signal in risk_items) if risk_items else '无'}",
         f"- 持仓保护触发: {', '.join(review.ticker for review in exit_items) if exit_items else '无'}",
         f"- LOTS 偏离: {', '.join(review.ticker for review in drift_items) if drift_items else '无'}",
+        f"- 新闻风险: {', '.join(brief.ticker for brief in news_risks[:5]) if news_risks else '无'}",
         f"- 数据质量问题: {len(result.market_data.issues)}",
         "",
         "核心候选",
@@ -57,6 +60,18 @@ def build_email_body(result: RunResult) -> str:
     lines.extend(["", "Supervisor 审查"])
     for review in result.supervisor_reviews[:8]:
         lines.append(f"- {review.ticker}: {review.decision} / {review.final_action} / {review.rationale}")
+    if news_risks or news_catalysts:
+        seen: set[str] = set()
+        lines.extend(["", "FMP 新闻面"])
+        for brief in news_risks + news_catalysts:
+            if brief.ticker in seen:
+                continue
+            seen.add(brief.ticker)
+            risk = ", ".join(brief.risk_flags[:3]) if brief.risk_flags else "无"
+            catalyst = ", ".join(brief.catalyst_flags[:3]) if brief.catalyst_flags else "无"
+            lines.append(f"- {brief.ticker}: 新闻 {brief.article_count} 条, 催化 {catalyst}, 风险 {risk}")
+            if brief.headlines:
+                lines.append(f"  {brief.headlines[0]}")
     if result.market_data.issues:
         lines.extend(["", "数据质量提示"])
         for issue in result.market_data.issues[:12]:
@@ -77,6 +92,7 @@ def send_summary_email(config: AppConfig, result: RunResult) -> None:
     risk_count = sum(1 for signal in result.signals if "减仓" in signal.action or "退出" in signal.action)
     risk_count += sum(1 for review in result.exit_reviews if review.severity >= 50)
     risk_count += sum(1 for review in result.drift_reviews if review.severity >= 50)
+    risk_count += sum(1 for brief in result.news_briefs if brief.risk_flags)
     subject_type = "风控提醒" if risk_count else "每日摘要"
     msg = EmailMessage()
     msg["Subject"] = f"{email_config.subject_prefix} {subject_type}"

@@ -64,6 +64,14 @@ docker compose --profile job run --rm quant-ai-job data-check --config config/de
 
 The command exits with code `0` only when all checked tickers have enough recent rows. Missing or stale tickers should be fixed before treating signals as live.
 
+Validate FMP news coverage for candidate or held tickers:
+
+```bash
+docker compose --profile job run --rm quant-ai-job news-check --config config/default.yaml --tickers NVDA,MSFT,TSLA
+```
+
+News checks are research context only. A headline can add a catalyst or risk flag, but it does not override trend, LOTS sizing, stop rules, or data-quality checks.
+
 ## Daily Report Job
 
 Without email:
