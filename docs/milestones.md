@@ -188,6 +188,27 @@ Acceptance criteria:
 - Triggered protection actions appear before the generic observation list in the HTML report.
 - Unit tests cover profit giveback and missing market-data manual review.
 
+## Milestone 5B: Actual Position vs LOTS Drift Check
+
+Status: `Done`
+
+Goal: compare imported real holdings against current LOTS sizing so old positions do not have to be blindly forced into today's target.
+
+Deliverables:
+
+- Actual shares versus LOTS initial and target shares. `Done`
+- Actual position weight versus target weight. `Done`
+- Stop-loss risk as percent of NAV. `Done`
+- Risk-budget breach detection. `Done`
+- HTML report section and Telegram/email summary. `Done`
+- Strategy and report explanation document. `Done`
+
+Acceptance criteria:
+
+- Imported positions show whether they are close to LOTS, overallocated, severely overallocated, or need manual review.
+- Report explains stop-loss risk versus risk budget.
+- The system does not automatically tell the user to immediately rebalance legacy positions; it suggests risk actions.
+
 ## Milestone 6: Backtest System Enhancement
 
 Status: `Not started`

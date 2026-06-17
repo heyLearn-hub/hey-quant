@@ -22,11 +22,13 @@ def build_email_body(result: RunResult) -> str:
     ]
     risk_items = [signal for signal in result.signals if "减仓" in signal.action or "退出" in signal.action]
     exit_items = [review for review in result.exit_reviews if review.severity >= 50]
+    drift_items = [review for review in result.drift_reviews if review.severity >= 50]
     lines = [
         "今日结论",
         f"- 核心候选: {', '.join(signal.ticker for signal in core[:2]) if core else '无'}",
         f"- 风控候选: {', '.join(signal.ticker for signal in risk_items) if risk_items else '无'}",
         f"- 持仓保护触发: {', '.join(review.ticker for review in exit_items) if exit_items else '无'}",
+        f"- LOTS 偏离: {', '.join(review.ticker for review in drift_items) if drift_items else '无'}",
         f"- 数据质量问题: {len(result.market_data.issues)}",
         "",
         "核心候选",
@@ -41,11 +43,13 @@ def build_email_body(result: RunResult) -> str:
     if result.positions:
         signal_by_ticker = {signal.ticker: signal for signal in result.signals}
         exit_by_ticker = {review.ticker: review for review in result.exit_reviews}
+        drift_by_ticker = {review.ticker: review for review in result.drift_reviews}
         for position in result.positions:
             signal = signal_by_ticker.get(position.ticker)
             exit_review = exit_by_ticker.get(position.ticker)
+            drift_review = drift_by_ticker.get(position.ticker)
             action = signal.action if signal else "无信号"
-            protection = exit_review.action if exit_review else "未生成"
+            protection = drift_review.action if drift_review else exit_review.action if exit_review else "未生成"
             pnl = f"{(signal.close / position.average_cost - 1) * 100:.1f}%" if signal else "无数据"
             lines.append(f"- {position.ticker}: {position.shares:.2f} 股, 成本 {position.average_cost:.2f}, 浮盈亏 {pnl}, 系统动作 {action}, 保护动作 {protection}")
     else:
@@ -72,6 +76,7 @@ def send_summary_email(config: AppConfig, result: RunResult) -> None:
 
     risk_count = sum(1 for signal in result.signals if "减仓" in signal.action or "退出" in signal.action)
     risk_count += sum(1 for review in result.exit_reviews if review.severity >= 50)
+    risk_count += sum(1 for review in result.drift_reviews if review.severity >= 50)
     subject_type = "风控提醒" if risk_count else "每日摘要"
     msg = EmailMessage()
     msg["Subject"] = f"{email_config.subject_prefix} {subject_type}"

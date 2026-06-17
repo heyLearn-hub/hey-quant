@@ -7,6 +7,7 @@ from jinja2 import Template
 from quant_ai_system.backtest import BacktestResult
 from quant_ai_system.config import AppConfig
 from quant_ai_system.exit_rules import PositionExitReview
+from quant_ai_system.position_drift import PositionDriftReview
 from quant_ai_system.report.templates import REPORT_TEMPLATE
 from quant_ai_system.risk import PortfolioRiskState
 from quant_ai_system.signals import SignalResult
@@ -34,6 +35,14 @@ def _css_for_exit_action(action: str) -> str:
     return "watch"
 
 
+def _css_for_drift_action(action: str) -> str:
+    if "严重" in action:
+        return "exit"
+    if "超配" in action or "复核" in action or "禁止加仓" in action:
+        return "trim"
+    return "watch"
+
+
 def render_report(
     config: AppConfig,
     signals: list[SignalResult],
@@ -45,6 +54,7 @@ def render_report(
     supervisor_reviews: list[SupervisorDecision] | None = None,
     positions: list[StoredPosition] | None = None,
     exit_reviews: list[PositionExitReview] | None = None,
+    drift_reviews: list[PositionDriftReview] | None = None,
 ) -> Path:
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -53,10 +63,13 @@ def render_report(
     supervisor_reviews = supervisor_reviews or []
     positions = positions or []
     exit_reviews = exit_reviews or []
+    drift_reviews = drift_reviews or []
     review_by_ticker = {review.ticker: review for review in supervisor_reviews}
     signal_by_ticker = {row["signal"].ticker: row["signal"] for row in signal_rows}
     exit_review_by_ticker = {review.ticker: review for review in exit_reviews}
     exit_review_rows = [{"review": review, "css": _css_for_exit_action(review.action)} for review in exit_reviews]
+    drift_review_by_ticker = {review.ticker: review for review in drift_reviews}
+    drift_review_rows = [{"review": review, "css": _css_for_drift_action(review.action)} for review in drift_reviews]
     core_rows = [
         row for row in signal_rows
         if (
@@ -71,6 +84,7 @@ def render_report(
         "buy_count": sum(1 for s in signals if "加仓" in s.action or "小仓" in s.action),
         "risk_count": sum(1 for s in signals if "减仓" in s.action or "退出" in s.action),
         "position_exit_count": sum(1 for r in exit_reviews if r.severity >= 50),
+        "position_drift_count": sum(1 for r in drift_reviews if r.severity >= 50),
         "core_count": len(core_rows),
     }
     html = Template(REPORT_TEMPLATE).render(
@@ -84,6 +98,8 @@ def render_report(
         signal_by_ticker=signal_by_ticker,
         exit_reviews=exit_review_rows,
         exit_review_by_ticker=exit_review_by_ticker,
+        drift_reviews=drift_review_rows,
+        drift_review_by_ticker=drift_review_by_ticker,
         metrics=backtest.metrics,
         portfolio_risk=portfolio_risk,
         issues=issues,

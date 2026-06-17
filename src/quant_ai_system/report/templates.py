@@ -38,7 +38,7 @@ REPORT_TEMPLATE = """<!doctype html>
       <div class="tile">扫描股票数 <b>{{ summary.ticker_count }}</b></div>
       <div class="tile">核心候选 <b>{{ summary.core_count }}</b></div>
       <div class="tile">减仓/退出候选 <b>{{ summary.risk_count }}</b></div>
-      <div class="tile">持仓保护触发 <b>{{ summary.position_exit_count }}</b></div>
+      <div class="tile">LOTS 偏离 <b>{{ summary.position_drift_count }}</b></div>
     </div>
 
     <section>
@@ -89,6 +89,32 @@ REPORT_TEMPLATE = """<!doctype html>
     </section>
 
     <section>
+      <h2>真实仓位 vs LOTS</h2>
+      <table>
+        <thead><tr><th>Ticker</th><th>结论</th><th>实际股数</th><th>LOTS 初始</th><th>LOTS 目标</th><th>实际仓位</th><th>目标仓位</th><th>股数偏离</th><th>止损风险/NAV</th><th>风险预算</th><th>说明</th></tr></thead>
+        <tbody>
+          {% for row in drift_reviews %}{% set d = row.review %}
+          <tr>
+            <td><b>{{ d.ticker }}</b></td>
+            <td><span class="tag {{ row.css }}">{{ d.action }}</span></td>
+            <td>{{ "%.2f"|format(d.actual_shares) }}</td>
+            <td>{{ "%.0f"|format(d.lots_initial_shares) if d.lots_initial_shares is not none else "无信号" }}</td>
+            <td>{{ "%.0f"|format(d.lots_target_shares) if d.lots_target_shares is not none else "无信号" }}</td>
+            <td>{{ "%.1f%%"|format(d.actual_weight * 100) if d.actual_weight is not none else "无数据" }}</td>
+            <td>{{ "%.1f%%"|format(d.target_weight * 100) if d.target_weight is not none else "无信号" }}</td>
+            <td>{{ "%.1f%%"|format(d.drift_pct * 100) if d.drift_pct is not none else "无信号" }}</td>
+            <td>{{ "%.1f%%"|format(d.stop_loss_nav_pct * 100) if d.stop_loss_nav_pct is not none else "无法计算" }}</td>
+            <td>{{ "%.1f%%"|format(d.risk_budget_pct * 100) if d.risk_budget_pct is not none else "无信号" }}</td>
+            <td>{{ "; ".join(d.notes) }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="11" class="muted">还没有录入持仓，暂不检查真实仓位和 LOTS 的偏离。</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section>
       <h2>利润保护与退出规则</h2>
       <table>
         <thead><tr><th>Ticker</th><th>保护动作</th><th>当前价</th><th>成本</th><th>当前浮盈</th><th>最高浮盈</th><th>利润回吐</th><th>动态保护线</th><th>说明</th></tr></thead>
@@ -119,6 +145,7 @@ REPORT_TEMPLATE = """<!doctype html>
         <tbody>
           {% for p in positions %}{% set s = signal_by_ticker.get(p.ticker) %}
           {% set er = exit_review_by_ticker.get(p.ticker) %}
+          {% set dr = drift_review_by_ticker.get(p.ticker) %}
           <tr>
             <td><b>{{ p.ticker }}</b></td>
             <td>{{ "%.2f"|format(p.shares) }}</td>
@@ -126,7 +153,7 @@ REPORT_TEMPLATE = """<!doctype html>
             <td>{{ "%.2f"|format(s.close) if s else "无数据" }}</td>
             <td>{% if s %}{{ "%.1f%%"|format((s.close / p.average_cost - 1) * 100) }}{% else %}无数据{% endif %}</td>
             <td>{{ s.action if s else "无信号" }}</td>
-            <td>{{ er.action if er else "未生成" }}</td>
+            <td>{{ dr.action if dr else er.action if er else "未生成" }}</td>
             <td>{% if s %}{{ "%.2f"|format(s.position.stop_price) }}{% elif p.current_stop %}{{ "%.2f"|format(p.current_stop) }}{% else %}未设置{% endif %}</td>
             <td>{{ p.thesis_note }}</td>
           </tr>

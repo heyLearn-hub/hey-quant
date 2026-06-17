@@ -56,12 +56,14 @@ def build_telegram_message(result: RunResult) -> str:
         if signal.ticker in approved and ("加仓" in signal.action or "小仓" in signal.action)
     ][:2]
     exit_items = [review for review in result.exit_reviews if review.severity >= 50]
+    drift_items = [review for review in result.drift_reviews if review.severity >= 50]
     risk_signals = [signal for signal in result.signals if "减仓" in signal.action or "退出" in signal.action]
 
     lines = [
         "Quant AI 今日提醒",
         f"核心候选: {', '.join(signal.ticker for signal in core) if core else '无'}",
         f"持仓保护触发: {', '.join(review.ticker for review in exit_items) if exit_items else '无'}",
+        f"LOTS 偏离: {', '.join(review.ticker for review in drift_items) if drift_items else '无'}",
         f"观察池风控候选: {', '.join(signal.ticker for signal in risk_signals[:8]) if risk_signals else '无'}",
         f"组合模式: {result.portfolio_risk.mode}",
         f"数据质量问题: {len(result.market_data.issues)}",
@@ -74,6 +76,15 @@ def build_telegram_message(result: RunResult) -> str:
             giveback = f"{review.profit_giveback_pct * 100:.1f}%" if review.profit_giveback_pct is not None else "未进入保护"
             stop = f"{review.dynamic_stop:.2f}" if review.dynamic_stop is not None else "未设置"
             lines.append(f"- {review.ticker}: {review.action}, 当前浮盈 {pnl}, 回吐 {giveback}, 保护线 {stop}")
+            lines.append(f"  {'; '.join(review.notes[:2])}")
+
+    if drift_items:
+        lines.extend(["", "真实仓位 vs LOTS"])
+        for review in drift_items[:5]:
+            actual_weight = f"{review.actual_weight * 100:.1f}%" if review.actual_weight is not None else "无数据"
+            risk_pct = f"{review.stop_loss_nav_pct * 100:.1f}%" if review.stop_loss_nav_pct is not None else "无法计算"
+            budget = f"{review.risk_budget_pct * 100:.1f}%" if review.risk_budget_pct is not None else "无信号"
+            lines.append(f"- {review.ticker}: {review.action}, 实际仓位 {actual_weight}, 止损风险 {risk_pct}, 预算 {budget}")
             lines.append(f"  {'; '.join(review.notes[:2])}")
 
     if core:

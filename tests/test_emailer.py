@@ -39,6 +39,7 @@ def test_email_body_contains_core_sections(tmp_path: Path) -> None:
     assert "今日结论" in body
     assert "当前持仓检查" in body
     assert "持仓保护触发" in body
+    assert "LOTS 偏离" in body
     assert "Supervisor 审查" in body
 
 
