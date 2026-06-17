@@ -161,7 +161,7 @@ quality:
 supervisor:
   enabled: true
   provider: deepseek
-  model: deepseek-v4-flash
+  model: deepseek-v4-pro
   require_api: false
   min_approval_score: 70
   max_core_approvals: 2
