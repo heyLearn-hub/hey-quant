@@ -62,6 +62,57 @@ With email:
 docker compose --profile job run --rm quant-ai-job run --config config/default.yaml --out outputs/latest_report.html --send-email
 ```
 
+## Updating From GitHub
+
+Normal release flow:
+
+```text
+Mac development -> git push GitHub -> Windows host pulls -> Docker rebuilds -> service restarts
+```
+
+On the Mac development machine:
+
+```bash
+git status
+git push origin main
+```
+
+On the Windows host, run:
+
+```powershell
+.\scripts\windows_docker_update.ps1 -ProjectRoot "C:\path\to\hey-quant"
+```
+
+The update script does this:
+
+```text
+check Docker is running
+check Git working tree is clean
+git fetch origin main
+git checkout main
+git pull --ff-only origin main
+docker compose build
+docker compose up -d quant-ai-web
+offline sample report smoke test
+HTTP check at http://127.0.0.1:8765
+```
+
+Useful options:
+
+```powershell
+.\scripts\windows_docker_update.ps1 -ProjectRoot "C:\path\to\hey-quant" -Branch main
+.\scripts\windows_docker_update.ps1 -ProjectRoot "C:\path\to\hey-quant" -SkipPull
+.\scripts\windows_docker_update.ps1 -ProjectRoot "C:\path\to\hey-quant" -SkipSmokeTest
+```
+
+For remote operation, prefer one of these:
+
+- Tailscale SSH or another private VPN command session.
+- Windows Remote Desktop.
+- Sunlogin/向日葵 for manual maintenance.
+
+Do not expose the Docker web port directly to the public internet.
+
 ## Windows Task Scheduler
 
 Use this helper:

@@ -120,6 +120,7 @@ Deliverables:
 - Windows Docker daily job PowerShell helper. `Done`
 - Windows Task Scheduler Docker XML template. `Done`
 - Docker deployment documentation. `Done`
+- Windows Docker update/redeploy helper. `Done on Mac`
 - Docker Compose config validation. `Done on Mac`
 - Local web service available through Docker. `Done on Mac, pending target Windows verification`
 - Daily scheduled report command through Docker. `Done on Mac, pending target Windows verification`
@@ -130,6 +131,7 @@ Acceptance criteria:
 - `docker compose up -d quant-ai-web` serves `http://127.0.0.1:8765`.
 - `docker compose --profile job run --rm quant-ai-job run --config config/default.yaml --offline-sample --out outputs/docker_sample_report.html` succeeds.
 - Windows Task Scheduler can run `scripts/windows_docker_daily_job.ps1`.
+- Windows host can pull from GitHub and redeploy with `scripts/windows_docker_update.ps1`.
 - `data/`, `outputs/`, and `logs/` persist outside the container.
 - `.env` is loaded at runtime and never baked into the image.
 

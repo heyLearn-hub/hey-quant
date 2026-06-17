@@ -88,6 +88,12 @@ http://127.0.0.1:8765
 .\scripts\windows_docker_daily_job.ps1 -ProjectRoot "C:\path\to\hey-quant" -SendEmail
 ```
 
+从 GitHub 拉取新版本并重新部署：
+
+```powershell
+.\scripts\windows_docker_update.ps1 -ProjectRoot "C:\path\to\hey-quant"
+```
+
 也可以使用非 Docker 的 PowerShell 本地 Python 方式：
 
 ```powershell
