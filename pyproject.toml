@@ -1,0 +1,33 @@
+[project]
+name = "quant-ai-system"
+version = "0.1.0"
+description = "Local low-frequency US tech/AI/semiconductor quant alert system."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "jinja2>=3.1",
+  "numpy>=1.26",
+  "openai>=2.0",
+  "pandas>=2.1",
+  "pyyaml>=6.0",
+  "yfinance>=0.2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+]
+
+[project.scripts]
+quant-ai = "quant_ai_system.cli:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PYTHON_BIN="$ROOT/.venv/bin/python"
+
+if [[ ! -x "$PYTHON_BIN" ]]; then
+  echo "Missing virtualenv Python: $PYTHON_BIN" >&2
+  echo "Run: python3 -m venv .venv && .venv/bin/python -m pip install -e '.[dev]'" >&2
+  exit 1
+fi
+
+export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
+
+if [[ -f "$ROOT/.env" ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$ROOT/.env"
+  set +a
+fi
+
+exec "$PYTHON_BIN" -m quant_ai_system.cli "$@"

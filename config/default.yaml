@@ -1,0 +1,157 @@
+account:
+  # 140,000 HKD converted at ~0.1276 USD/HKD.
+  nav: 17870
+  currency: USD
+  source_capital_hkd: 140000
+  hkd_usd_rate: 0.1276
+  fractional_shares: false
+
+universe:
+  tickers:
+    - NVDA
+    - AMD
+    - AVGO
+    - TSM
+    - ASML
+    - AMAT
+    - LRCX
+    - KLAC
+    - MU
+    - ARM
+    - MRVL
+    - SMCI
+    - MSFT
+    - GOOGL
+    - META
+    - AMZN
+    - TSLA
+    - PLTR
+    - ORCL
+    - ANET
+    - VRT
+  leveraged_tickers:
+    - TQQQ
+    - SOXL
+    - USD
+  benchmarks:
+    - QQQ
+    - SMH
+    - SPY
+  primary_benchmark: QQQ
+  theme_benchmark: SMH
+
+data:
+  years: 10
+  cache_dir: data/cache
+  prefer_cache: true
+  sample_on_remote_failure: true
+  stop_after_paid_provider: false
+  provider_priority:
+    - yfinance
+    - stooq
+    - fmp
+
+storage:
+  db_path: data/portfolio.sqlite3
+
+email:
+  enabled: false
+  smtp_host: smtp.office365.com
+  smtp_port: 587
+  use_tls: true
+  username_env: SMTP_USERNAME
+  password_env: SMTP_PASSWORD
+  from_addr_env: SMTP_FROM
+  to_addrs_env: SMTP_TO
+  subject_prefix: "[Quant AI]"
+
+risk:
+  profile: aggressive
+  holding_style: concentrated_position
+  max_positions: 2
+  min_core_score: 70
+  initial_weight_min: 0.18
+  initial_weight_max: 0.25
+  target_weight_min: 0.35
+  target_weight_max: 0.45
+  leveraged_initial_weight_max: 0.10
+  leveraged_target_weight_max: 0.20
+  risk_budget_min: 0.02
+  risk_budget_max: 0.03
+  theme_exposure_limit: 0.85
+  atr_stop_multiple: 2.8
+  portfolio_drawdown_reduce: 0.08
+  portfolio_drawdown_defensive: 0.12
+  portfolio_drawdown_stop_new: 0.15
+  earnings_profit_cushion: 0.08
+
+backtest:
+  years: 10
+  initial_cash: 17870
+  slippage_bps: 15
+  rebalance: weekly
+  max_positions: 2
+
+quality:
+  enabled: true
+  technical_weight: 0.65
+  quality_weight: 0.35
+  buffett_style_notes:
+    - durable competitive advantage
+    - high return on capital / strong margins
+    - recurring cash generation
+    - manageable balance sheet risk
+    - reasonable valuation versus growth
+  score_overrides:
+    MSFT:
+      score: 92
+      note: quality compounder; cloud/software cash flow and balance-sheet strength
+    GOOGL:
+      score: 88
+      note: search/YouTube moat plus AI optionality; valuation discipline still required
+    META:
+      score: 86
+      note: high cash generation and AI ad efficiency; cyclical ad risk remains
+    ASML:
+      score: 90
+      note: lithography scarcity value; semiconductor capex cycle risk
+    AVGO:
+      score: 87
+      note: infrastructure software plus custom silicon exposure; integration/leverage risk
+    NVDA:
+      score: 84
+      note: AI accelerator leadership; expectations and valuation risk are high
+    AMZN:
+      score: 82
+      note: AWS and retail scale; margin execution matters
+    TSM:
+      score: 84
+      note: leading foundry; geopolitical and capex-cycle risks
+    TQQQ:
+      score: 35
+      note: leveraged ETF; tactical only, not Buffett-style quality holding
+    SOXL:
+      score: 30
+      note: leveraged semiconductor ETF; tactical only, high decay and drawdown risk
+    USD:
+      score: 35
+      note: leveraged semiconductor ETF; tactical only, high decay and concentration risk
+
+supervisor:
+  enabled: true
+  provider: openai
+  model: gpt-5
+  require_api: false
+  min_approval_score: 70
+  max_core_approvals: 2
+  review_style: investment_committee
+  policy:
+    - never approve purely because technical momentum is strong
+    - require clear stop, position size, and data-quality status
+    - downgrade leveraged ETFs unless trend is strong and risk size is small
+    - prefer one or two high-quality compounders over broad diversification
+    - output is a research decision aid, not automatic execution
+
+report:
+  title: 美股科技/半导体/AI 低频量化提醒系统
+  locale: zh-CN
