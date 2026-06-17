@@ -174,6 +174,7 @@ bin/quant-ai-local run --config config/default.yaml --out outputs/latest_report.
 - [CONTRIBUTING.md](CONTRIBUTING.md)
 - [docs/development_workflow.md](docs/development_workflow.md)
 - [docs/docker_deployment.md](docs/docker_deployment.md)
+- [docs/windows_handoff.md](docs/windows_handoff.md)
 
 ## 当前默认策略
 
