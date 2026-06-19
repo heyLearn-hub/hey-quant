@@ -18,10 +18,11 @@ if (Test-Path $EnvPath) {
     if ($_ -match "^\s*([^#][^=]+)=(.*)$") {
       $name = $matches[1].Trim()
       $value = $matches[2].Trim().Trim('"')
-      [Environment]::SetEnvironmentVariable($name, $value, "Process")
+      if (-not [Environment]::GetEnvironmentVariable($name, "Process")) {
+        [Environment]::SetEnvironmentVariable($name, $value, "Process")
+      }
     }
   }
 }
 
 & $Python -m quant_ai_system.cli @Args
-

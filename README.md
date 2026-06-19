@@ -134,6 +134,9 @@ scripts/windows_daily_email_task.xml
 # 生成今日扫描、仓位、风控和回测报告
 bin/quant-ai-local run --config config/default.yaml
 
+# 检查 v1.0 生产准备度：密钥、Telegram、FMP、数据库、Docker/Windows 脚本、Git 忽略规则
+bin/quant-ai-local release-check --config config/default.yaml
+
 # 只看配置摘要
 bin/quant-ai-local show-config --config config/default.yaml
 
@@ -169,7 +172,8 @@ bin/quant-ai-local run --config config/default.yaml --out outputs/latest_report.
 
 项目里程碑和后续开发规划见：
 
-[docs/milestones.md](docs/milestones.md)
+- [docs/milestones.md](docs/milestones.md)
+- [docs/v1_release_plan.md](docs/v1_release_plan.md)
 
 本地开发流程和 GitHub 协作规则见：
 

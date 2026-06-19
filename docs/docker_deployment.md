@@ -34,6 +34,7 @@ FMP_API_KEY=your_fmp_key
 ```bash
 cp .env.example .env
 docker compose build
+docker compose --profile job run --rm quant-ai-job release-check --config config/default.yaml
 docker compose up -d quant-ai-web
 ```
 
@@ -50,6 +51,7 @@ By default the web service binds to `127.0.0.1` on the host. Keep this setting f
 ## Offline Smoke Test
 
 ```bash
+docker compose --profile job run --rm quant-ai-job release-check --config config/default.yaml
 docker compose --profile job run --rm quant-ai-job run --config config/default.yaml --offline-sample --out outputs/docker_sample_report.html
 docker compose --profile job run --rm quant-ai-job factor-test --config config/default.yaml --offline-sample --out outputs/docker_factor_report.html
 ```

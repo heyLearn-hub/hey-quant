@@ -13,10 +13,33 @@ fi
 export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
 
 if [[ -f "$ROOT/.env" ]]; then
+  PRESERVE_ENV_NAMES=(
+    FMP_API_KEY
+    DEEPSEEK_API_KEY
+    OPENAI_API_KEY
+    TELEGRAM_BOT_TOKEN
+    TELEGRAM_CHAT_ID
+    SMTP_USERNAME
+    SMTP_PASSWORD
+    SMTP_FROM
+    SMTP_TO
+  )
+  for name in "${PRESERVE_ENV_NAMES[@]}"; do
+    if [[ -n "${!name-}" ]]; then
+      export "__QUANT_AI_PRESERVE_$name=${!name}"
+    fi
+  done
   set -a
   # shellcheck disable=SC1091
   source "$ROOT/.env"
   set +a
+  for name in "${PRESERVE_ENV_NAMES[@]}"; do
+    preserved_name="__QUANT_AI_PRESERVE_$name"
+    if [[ -n "${!preserved_name-}" ]]; then
+      export "$name=${!preserved_name}"
+      unset "$preserved_name"
+    fi
+  done
 fi
 
 exec "$PYTHON_BIN" -m quant_ai_system.cli "$@"

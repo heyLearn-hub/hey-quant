@@ -167,7 +167,7 @@ class QualityConfig:
 class SupervisorConfig:
     enabled: bool = True
     provider: str = "deepseek"
-    model: str = "deepseek-v4-flash"
+    model: str = "deepseek-v4-pro"
     require_api: bool = False
     min_approval_score: float = 70
     max_core_approvals: int = 2

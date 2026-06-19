@@ -182,7 +182,7 @@ def test_deepseek_review_parses_json_response(monkeypatch) -> None:
 
     class _FakeCompletions:
         def create(self, **kwargs):
-            assert kwargs["model"] == "deepseek-v4-flash"
+            assert kwargs["model"] == "deepseek-v4-pro"
             assert kwargs["response_format"] == {"type": "json_object"}
             return type("Resp", (), {"choices": [_FakeChoice()]})()
 

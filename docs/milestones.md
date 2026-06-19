@@ -11,30 +11,86 @@ Status legend:
 
 ## Milestone 0: Project Governance And GitHub Foundation
 
-Status: `In progress`
+Status: `Done`
 
 Goal: make the project safe to develop over time and push to GitHub without leaking secrets or runtime data.
 
 Deliverables:
 
 - Initialize and clean the Git repository structure. `Done locally`
-- Create or connect a GitHub repository. `Remote configured; push blocked by permission`
+- Create or connect a GitHub repository. `Done`
 - Keep `.env`, API keys, SQLite databases, reports, caches, logs, and virtualenvs out of Git. `Done`
 - Document branch conventions. `Done`
   - `main`: stable versions.
-  - `dev`: integration branch.
-  - `feature/*`: focused feature branches.
+  - `codex/*`: focused development branches from Codex.
+  - `dev`: optional integration branch if the project later needs one.
 - Add a basic PR checklist for tests, secrets, and docs. `Done`
 
 Acceptance criteria:
 
-- Project can be pushed to GitHub. `Blocked: current GitHub credential lacks write access`
+- Project can be pushed to GitHub. `Done`
 - `pytest` passes. `Done`
 - No API keys, real holdings, local reports, or runtime databases are tracked. `Done locally`
 
-Blocker:
+## v1.0 Release Target
 
-- `git push -u origin main` currently fails with GitHub `403` because the authenticated user does not have write permission to `heyLearn-hub/hey-quant`.
+Status: `In progress`
+
+Goal: ship a production-usable personal quant alert system for the Windows host, while Mac remains the development/PPE machine.
+
+Definition of v1.0:
+
+```text
+Windows always-on service -> market/position/news checks -> action-first report -> Telegram alerts -> manual decision
+```
+
+v1.0 is not a promise that the strategy will make money. It is the first version that is stable enough to support disciplined manual trading decisions with auditable data quality, sizing, risk, and AI review.
+
+In scope:
+
+- Windows Docker production deployment with dashboard, scheduled daily report, Telegram command listener, and lightweight monitor.
+- Real open positions treated as the highest-priority risk surface.
+- FMP/yfinance/Stooq data quality checks, with FMP used for paid market data and news when configured.
+- Action-first Telegram and HTML reports.
+- LOTS sizing, current-position drift checks, profit protection, and exit candidates.
+- Public Equity risk fields in every meaningful candidate or risk review:
+  - intended alpha;
+  - unwanted risk;
+  - retained exposure;
+  - binding constraint;
+  - liquidity/exit posture;
+  - monitoring triggers;
+  - missing evidence.
+- AI Supervisor review only for core candidates, held-position actions, and high-value news/risk events.
+- Minimum credible backtest/factor tooling for trend, relative strength, and full-system variants.
+
+Out of scope for v1.0:
+
+- Broker API integration or automatic trading.
+- Intraday high-frequency strategy.
+- Enterprise-grade instrument master, data sourcing, mapping, and pricing platform.
+- Complex machine learning strategy selection.
+- Public internet exposure for the dashboard.
+
+v1.0 acceptance criteria:
+
+```bash
+.venv/bin/python -m pytest -q
+bin/quant-ai-local release-check --config config/default.yaml
+bin/quant-ai-local run --config config/default.yaml --offline-sample --out outputs/sample_report.html
+bin/quant-ai-local factor-test --config config/default.yaml --offline-sample --out outputs/factor_report.html
+docker compose config
+```
+
+Windows target-host acceptance:
+
+- `docker compose up -d quant-ai-web` serves `http://127.0.0.1:8765`.
+- `/health` returns `ok: true` and no current fatal error.
+- `monitor-status` shows recent price/news/data-health state.
+- Daily scheduled report runs after the US close and sends Telegram.
+- Telegram write commands require `/confirm <id>` before changing SQLite.
+- Any missing held-position quote appears as data-fix priority, not as a buy/sell signal.
+- No `.env`, API keys, SQLite database, cache, report, or log file is tracked by Git.
 
 ## Milestone 1: Local Core System Stable Version
 
@@ -126,6 +182,7 @@ Deliverables:
 - Windows Docker update/redeploy helper. `Done on Mac`
 - Windows auto-update Task Scheduler template. `Done on Mac`
 - Docker Compose config validation. `Done on Mac`
+- Release readiness check command. `Done on Mac`
 - Local web service available through Docker. `Done on Mac, pending target Windows verification`
 - Daily scheduled report command through Docker. `Done on Mac, pending target Windows verification`
 
@@ -134,6 +191,7 @@ Acceptance criteria:
 - `docker compose build` succeeds.
 - `docker compose up -d quant-ai-web` serves `http://127.0.0.1:8765`.
 - `docker compose --profile job run --rm quant-ai-job run --config config/default.yaml --offline-sample --out outputs/docker_sample_report.html` succeeds.
+- `bin/quant-ai-local release-check --config config/default.yaml` identifies missing production env/config issues before deployment.
 - Windows Task Scheduler can run `scripts/windows_docker_daily_job.ps1` with `-SendTelegram`.
 - Windows host can pull from GitHub and redeploy with `scripts/windows_docker_update.ps1`.
 - Windows host can poll GitHub and redeploy only when `origin/main` changes.
@@ -324,7 +382,7 @@ Deliverables:
 Acceptance criteria:
 
 - `.env` can provide `DEEPSEEK_API_KEY` without committing secrets.
-- The default config uses `provider: deepseek` and `model: deepseek-v4-flash`.
+- The default config uses `provider: deepseek` and `model: deepseek-v4-pro`.
 - If AI review fails, the report still completes with local rule fallback and marks the review as manual.
 
 ## Milestone 8: Paid Market Data Integration
