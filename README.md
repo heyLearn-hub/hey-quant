@@ -148,6 +148,9 @@ bin/quant-ai-local factor-test --config config/default.yaml --offline-sample --o
 
 # 生成报告并发送 Telegram
 bin/quant-ai-local run --config config/default.yaml --out outputs/latest_report.html --send-telegram
+
+# 查看最近 Supervisor / AI 审查日志
+bin/quant-ai-local supervisor-log --config config/default.yaml --limit 20
 ```
 
 ## 模块
@@ -160,6 +163,7 @@ bin/quant-ai-local run --config config/default.yaml --out outputs/latest_report.
 - `portfolio_store`: SQLite 本地持仓和操作流水。
 - `risk`: ATR 止损、50/200 日线退出、组合回撤和主题集中度检查。
 - `supervisor`: GPT/本地规则主管审查层，最后复核数据质量、仓位、止损、杠杆 ETF 风险和执行前检查。
+- `supervisor-log`: SQLite 决策日志，用于复盘每次 AI/本地规则审查的 provider、动作、分数和阻断原因。
 - `backtest`: 日线低频回测，包含滑点、下日成交和基准对比。
 - `factors`: 单因子实验，用于学习和验证动量、相对强度、RSI 等因子的有效性。
 - `telegram_notifier`: Telegram Bot 消息摘要。

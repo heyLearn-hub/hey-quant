@@ -8,7 +8,7 @@ from quant_ai_system.cli import main
 from quant_ai_system.config import AccountConfig, BacktestConfig, RiskConfig, load_config
 from quant_ai_system.data.providers import make_sample_market_data
 from quant_ai_system.engine import run_system
-from quant_ai_system.portfolio_store import upsert_position, upsert_symbol_alias
+from quant_ai_system.portfolio_store import list_supervisor_decision_logs, upsert_position, upsert_symbol_alias
 
 
 def test_backtest_materializes_three_strategy_metrics() -> None:
@@ -69,6 +69,18 @@ def test_symbol_alias_uses_data_symbol_but_keeps_broker_symbol_in_positions(tmp_
     assert "SNXX" not in {signal.ticker for signal in result.signals}
     assert result.exit_reviews[0].ticker == "SNXX"
     assert result.exit_reviews[0].close is not None
+
+
+def test_run_system_logs_supervisor_decisions(tmp_path: Path) -> None:
+    config = load_config("config/default.yaml")
+    db = tmp_path / "portfolio.sqlite3"
+    config = replace(config, storage=replace(config.storage, db_path=str(db)))
+
+    result = run_system(config, tmp_path / "report.html", offline_sample=True)
+    logs = list_supervisor_decision_logs(db, limit=200)
+
+    assert len(logs) == len(result.supervisor_reviews)
+    assert {log.ticker for log in logs} == {review.ticker for review in result.supervisor_reviews}
 
 
 def test_cli_offline_run(tmp_path: Path) -> None:

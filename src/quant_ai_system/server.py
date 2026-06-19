@@ -18,7 +18,7 @@ from urllib.parse import parse_qs, urlparse
 from quant_ai_system.config import load_config
 from quant_ai_system.engine import RunResult, run_system
 from quant_ai_system.monitor import MonitorListener
-from quant_ai_system.portfolio_store import close_position, list_data_health, list_positions, list_symbol_aliases, list_trades, record_trade, upsert_position, upsert_symbol_alias
+from quant_ai_system.portfolio_store import close_position, list_data_health, list_positions, list_supervisor_decision_logs, list_symbol_aliases, list_trades, record_trade, upsert_position, upsert_symbol_alias
 from quant_ai_system.telegram_commands import TelegramCommandListener, TelegramCommandProcessor
 from quant_ai_system.telegram_notifier import send_telegram_text
 
@@ -298,11 +298,13 @@ def make_handler(state: ServerState) -> type[BaseHTTPRequestHandler]:
                 trades = list_trades(_db_path(state), limit=10)
                 aliases = list_symbol_aliases(_db_path(state))
                 health = list_data_health(_db_path(state), limit=8)
+                supervisor_logs = list_supervisor_decision_logs(_db_path(state), limit=8)
             except Exception:
                 positions = []
                 trades = []
                 aliases = []
                 health = []
+                supervisor_logs = []
             position_rows = "".join(
                 f"<tr><td><b>{html.escape(p.ticker)}</b></td><td>{p.shares:.2f}</td><td>{p.average_cost:.2f}</td><td>{p.current_stop if p.current_stop is not None else ''}</td><td>{html.escape(p.thesis_note)}</td>"
                 f"<td><form method='post' action='/positions/close'><input type='hidden' name='ticker' value='{html.escape(p.ticker)}'><input name='note' placeholder='清仓备注'><button type='submit'>清仓</button></form></td></tr>"
@@ -320,6 +322,10 @@ def make_handler(state: ServerState) -> type[BaseHTTPRequestHandler]:
                 f"<tr><td><b>{html.escape(h.ticker)}</b></td><td>{html.escape(h.check_type)}</td><td>{html.escape(h.provider)}</td><td>{'OK' if h.ok else 'CHECK'}</td><td>{html.escape(h.message)}</td><td>{html.escape(h.checked_at[:19])}</td></tr>"
                 for h in health
             ) or "<tr><td colspan='6' class='muted'>暂无 monitor 检查记录</td></tr>"
+            supervisor_log_rows = "".join(
+                f"<tr><td>{html.escape(item.created_at[:19])}</td><td><b>{html.escape(item.ticker)}</b></td><td>{html.escape(item.provider)}</td><td>{html.escape(item.decision)}</td><td>{item.approval_score:.1f}</td><td>{html.escape(item.final_action)}</td><td>{html.escape('; '.join(item.blockers[:2]) if item.blockers else '-')}</td></tr>"
+                for item in supervisor_logs
+            ) or "<tr><td colspan='7' class='muted'>暂无 Supervisor 决策日志。刷新报告后会自动记录。</td></tr>"
             body = f"""<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -404,6 +410,10 @@ def make_handler(state: ServerState) -> type[BaseHTTPRequestHandler]:
   <div class="panel">
     <h2>Monitor / Data Health</h2>
     <table><thead><tr><th>Ticker</th><th>检查</th><th>来源</th><th>状态</th><th>说明</th><th>时间</th></tr></thead><tbody>{health_rows}</tbody></table>
+  </div>
+  <div class="panel">
+    <h2>Supervisor 决策日志</h2>
+    <table><thead><tr><th>时间</th><th>Ticker</th><th>来源</th><th>决策</th><th>分数</th><th>动作</th><th>阻断原因</th></tr></thead><tbody>{supervisor_log_rows}</tbody></table>
   </div>
   <div class="panel">
     <b>状态</b>

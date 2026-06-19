@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -76,6 +77,22 @@ class MonitorAlertRecord:
     category: str
     priority: str
     message: str
+    created_at: str
+
+
+@dataclass(frozen=True)
+class SupervisorDecisionLogRecord:
+    id: int
+    run_id: str
+    ticker: str
+    provider: str
+    decision: str
+    approval_score: float
+    final_action: str
+    rationale: str
+    blockers: list[str]
+    required_checks: list[str]
+    report_path: str
     created_at: str
 
 
@@ -174,6 +191,24 @@ def init_db(db_path: str | Path) -> None:
                 category TEXT NOT NULL,
                 priority TEXT NOT NULL,
                 message TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS supervisor_decision_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_id TEXT NOT NULL,
+                ticker TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                decision TEXT NOT NULL,
+                approval_score REAL NOT NULL,
+                final_action TEXT NOT NULL,
+                rationale TEXT NOT NULL,
+                blockers_json TEXT NOT NULL,
+                required_checks_json TEXT NOT NULL,
+                report_path TEXT NOT NULL DEFAULT '',
                 created_at TEXT NOT NULL
             )
             """
@@ -399,5 +434,61 @@ def list_monitor_alerts(db_path: str | Path, limit: int = 50) -> list[MonitorAle
         rows = conn.execute("SELECT * FROM monitor_alerts ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
     return [
         MonitorAlertRecord(row["alert_key"], row["ticker"], row["category"], row["priority"], row["message"], row["created_at"])
+        for row in rows
+    ]
+
+
+def insert_supervisor_decision_logs(db_path: str | Path, decisions: list[object], report_path: str | Path = "") -> str:
+    init_db(db_path)
+    run_id = datetime.now(tz=UTC).isoformat(timespec="seconds")
+    rows = [
+        (
+            run_id,
+            str(getattr(decision, "ticker")).strip().upper(),
+            str(getattr(decision, "provider")),
+            str(getattr(decision, "decision")),
+            float(getattr(decision, "approval_score")),
+            str(getattr(decision, "final_action")),
+            str(getattr(decision, "rationale")),
+            json.dumps(list(getattr(decision, "blockers", [])), ensure_ascii=False),
+            json.dumps(list(getattr(decision, "required_checks", [])), ensure_ascii=False),
+            str(report_path),
+            run_id,
+        )
+        for decision in decisions
+    ]
+    if not rows:
+        return run_id
+    with _connect(db_path) as conn:
+        conn.executemany(
+            """
+            INSERT INTO supervisor_decision_log
+                (run_id, ticker, provider, decision, approval_score, final_action, rationale, blockers_json, required_checks_json, report_path, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            rows,
+        )
+    return run_id
+
+
+def list_supervisor_decision_logs(db_path: str | Path, limit: int = 50) -> list[SupervisorDecisionLogRecord]:
+    init_db(db_path)
+    with _connect(db_path) as conn:
+        rows = conn.execute("SELECT * FROM supervisor_decision_log ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+    return [
+        SupervisorDecisionLogRecord(
+            id=int(row["id"]),
+            run_id=row["run_id"],
+            ticker=row["ticker"],
+            provider=row["provider"],
+            decision=row["decision"],
+            approval_score=float(row["approval_score"]),
+            final_action=row["final_action"],
+            rationale=row["rationale"],
+            blockers=list(json.loads(row["blockers_json"] or "[]")),
+            required_checks=list(json.loads(row["required_checks_json"] or "[]")),
+            report_path=row["report_path"],
+            created_at=row["created_at"],
+        )
         for row in rows
     ]

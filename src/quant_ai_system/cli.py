@@ -10,7 +10,7 @@ from quant_ai_system.engine import run_system
 from quant_ai_system.data import check_provider_data, get_market_data, make_sample_market_data
 from quant_ai_system.factors import run_factor_experiment, write_factor_report
 from quant_ai_system.monitor import format_monitor_status, run_monitor_once
-from quant_ai_system.portfolio_store import list_symbol_aliases, upsert_symbol_alias
+from quant_ai_system.portfolio_store import list_supervisor_decision_logs, list_symbol_aliases, upsert_symbol_alias
 from quant_ai_system.release import format_release_checks, release_check_exit_code, run_release_checks
 from quant_ai_system.research import build_news_briefs
 from quant_ai_system.server import install_launch_agent, serve, service_status, uninstall_launch_agent
@@ -98,6 +98,10 @@ def _build_parser() -> argparse.ArgumentParser:
 
     release_check = sub.add_parser("release-check")
     release_check.add_argument("--config", default="config/default.yaml")
+
+    supervisor_log = sub.add_parser("supervisor-log")
+    supervisor_log.add_argument("--config", default="config/default.yaml")
+    supervisor_log.add_argument("--limit", type=int, default=20)
     return parser
 
 
@@ -129,6 +133,19 @@ def main(argv: list[str] | None = None) -> int:
         checks = run_release_checks(config)
         print(format_release_checks(checks))
         return release_check_exit_code(checks)
+
+    if args.command == "supervisor-log":
+        logs = list_supervisor_decision_logs(config.storage.db_path, limit=args.limit)
+        if not logs:
+            print("No supervisor decision logs.")
+            return 0
+        for item in logs:
+            blockers = "; ".join(item.blockers[:2]) if item.blockers else "-"
+            print(
+                f"{item.created_at}\t{item.ticker}\t{item.provider}\t{item.decision}\t"
+                f"score={item.approval_score:.1f}\t{item.final_action}\t{blockers}"
+            )
+        return 0
 
     if args.command == "factor-test":
         tickers = list(dict.fromkeys(config.universe.tickers + config.universe.leveraged_tickers + config.universe.benchmarks))

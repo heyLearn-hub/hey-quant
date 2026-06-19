@@ -351,7 +351,7 @@ Deliverables:
 - AI reviews only core candidates and current holdings requiring action.
 - AI reviews earnings/calendar risk when available.
 - AI can summarize relevant news or thesis changes when explicitly supplied or connected later.
-- AI decisions are logged for later review.
+- AI decisions are logged for later review. `Done`
 - AI output remains structured:
   - `approve_for_consideration`
   - `hold`
@@ -363,6 +363,7 @@ Acceptance criteria:
 - AI never approves when data quality is blocked.
 - AI output references system-calculated data.
 - Reports and emails can display AI review results.
+- Dashboard and `supervisor-log` can show recent AI/local-rule decision history.
 - Python rules remain available as fallback.
 
 ## Milestone 7A: AI Provider Adapter V1

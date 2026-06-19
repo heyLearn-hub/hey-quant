@@ -12,7 +12,7 @@ from quant_ai_system.indicators import build_indicators
 from quant_ai_system.position_drift import PositionDriftReview, evaluate_positions_drift
 from quant_ai_system.quality import assess_quality
 from quant_ai_system.report.html import render_report
-from quant_ai_system.portfolio_store import StoredPosition, get_data_symbol, list_positions
+from quant_ai_system.portfolio_store import StoredPosition, get_data_symbol, insert_supervisor_decision_logs, list_positions
 from quant_ai_system.research import NewsBrief, build_news_briefs
 from quant_ai_system.risk import PortfolioRiskState, evaluate_portfolio_drawdown
 from quant_ai_system.signals import SignalResult, evaluate_signal
@@ -97,6 +97,7 @@ def run_system(config: AppConfig, out_path: str | Path, offline_sample: bool = F
     )[: config.research.news_max_tickers]
     news_briefs = [] if offline_sample else build_news_briefs(news_tickers, config.research)
     supervisor_reviews = run_supervisor_review(signals, config.supervisor, market_data.issues, news_briefs)
+    insert_supervisor_decision_logs(config.storage.db_path, supervisor_reviews, out_path)
     exit_reviews = evaluate_positions_exit(positions, indicators_by_ticker, config.risk, signals)
     drift_reviews = evaluate_positions_drift(positions, signals, exit_reviews, config.account, config.risk)
     report_path = render_report(
