@@ -4,6 +4,7 @@ from pathlib import Path
 
 from jinja2 import Template
 
+from quant_ai_system.action_summary import build_action_summary
 from quant_ai_system.backtest import BacktestResult
 from quant_ai_system.config import AppConfig
 from quant_ai_system.exit_rules import PositionExitReview
@@ -73,15 +74,17 @@ def render_report(
     exit_review_rows = [{"review": review, "css": _css_for_exit_action(review.action)} for review in exit_reviews]
     drift_review_by_ticker = {review.ticker: review for review in drift_reviews}
     drift_review_rows = [{"review": review, "css": _css_for_drift_action(review.action)} for review in drift_reviews]
-    core_rows = [
-        row for row in signal_rows
-        if (
-            row["signal"].score >= config.risk.min_core_score
-            and ("加仓" in row["signal"].action or "小仓" in row["signal"].action)
-            and review_by_ticker.get(row["signal"].ticker, None) is not None
-            and review_by_ticker[row["signal"].ticker].decision == "approve_for_consideration"
-        )
-    ][: config.risk.max_positions]
+    action_summary = build_action_summary(
+        signals,
+        supervisor_reviews,
+        exit_reviews,
+        drift_reviews,
+        news_briefs,
+        set(config.universe.leveraged_tickers + config.universe.tactical_tickers),
+        config.risk.max_positions,
+    )
+    core_tickers = {signal.ticker for signal in action_summary.stock_candidates}
+    core_rows = [row for row in signal_rows if row["signal"].ticker in core_tickers]
     summary = {
         "ticker_count": len(signals),
         "buy_count": sum(1 for s in signals if "加仓" in s.action or "小仓" in s.action),
@@ -109,6 +112,7 @@ def render_report(
         portfolio_risk=portfolio_risk,
         issues=issues,
         summary=summary,
+        action_summary=action_summary,
     )
     out.write_text(html, encoding="utf-8")
     return out

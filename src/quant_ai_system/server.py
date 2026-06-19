@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import html
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -17,6 +18,7 @@ from urllib.parse import parse_qs, urlparse
 from quant_ai_system.config import load_config
 from quant_ai_system.engine import RunResult, run_system
 from quant_ai_system.portfolio_store import close_position, list_positions, list_trades, record_trade, upsert_position
+from quant_ai_system.telegram_commands import TelegramCommandListener, TelegramCommandProcessor
 
 
 @dataclass
@@ -32,10 +34,16 @@ class ServerState:
 
 def _approved_core(result: RunResult) -> list[str]:
     approved = {review.ticker for review in result.supervisor_reviews if review.decision == "approve_for_consideration"}
+    tactical = set(result.tactical_tickers)
     return [
         signal.ticker
         for signal in sorted(result.signals, key=lambda item: item.score, reverse=True)
-        if signal.ticker in approved and ("加仓" in signal.action or "小仓" in signal.action)
+        if (
+            signal.ticker in approved
+            and signal.ticker not in tactical
+            and ("加仓" in signal.action or "小仓" in signal.action)
+            and signal.position.target_shares >= 1
+        )
     ]
 
 
@@ -392,4 +400,17 @@ def serve(
     if open_browser:
         webbrowser.open(url)
     refresh_report_background(state)
+    config = load_config(state.config_path)
+    listener = None
+    if (
+        config.telegram.command_polling_enabled
+        and os.environ.get(config.telegram.bot_token_env, "").strip()
+        and os.environ.get(config.telegram.chat_id_env, "").strip()
+    ):
+        processor = TelegramCommandProcessor(config, _db_path(state), refresh_callback=lambda: refresh_report_background(state))
+        listener = TelegramCommandListener(processor, poll_interval=config.telegram.command_poll_interval_seconds)
+        listener.start()
+        print("Telegram command listener: enabled")
+    else:
+        print("Telegram command listener: disabled")
     server.serve_forever()

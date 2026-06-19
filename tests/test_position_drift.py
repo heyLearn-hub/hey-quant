@@ -50,5 +50,6 @@ def test_position_drift_handles_missing_signal() -> None:
 
     review = evaluate_position_drift(position, None, None, AccountConfig(nav=10_000), RiskConfig())
 
-    assert review.action == "偏离 LOTS/人工复核"
+    assert review.action == "数据修复优先"
     assert review.lots_target_shares is None
+    assert any("没有可用行情" in note for note in review.notes)

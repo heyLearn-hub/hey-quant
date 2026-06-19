@@ -92,6 +92,39 @@ To discover the Telegram chat id, first send `/start` to the bot, set `TELEGRAM_
 docker compose --profile job run --rm quant-ai-job telegram-chat-id --config config/default.yaml
 ```
 
+## Telegram Remote Position Commands
+
+Telegram write commands are handled by the long-running web service, not the one-shot job:
+
+```bash
+docker compose up -d --build quant-ai-web
+```
+
+When `.env` contains `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`, the service polls Telegram and accepts commands only from that configured chat id.
+
+Supported commands:
+
+```text
+/pos
+/buy TICKER SHARES PRICE note
+/add TICKER SHARES PRICE note
+/trim TICKER SHARES PRICE note
+/sell TICKER SHARES PRICE note
+/stop TICKER PRICE
+/note TICKER text
+/confirm <id>
+```
+
+Write commands first create a pending action. The SQLite portfolio changes only after `/confirm <id>`. This records manual trades and stops; it does not connect to a broker or place orders.
+
+Production state rule:
+
+```text
+GitHub syncs code only.
+Windows data/portfolio.sqlite3 is the source of truth for real positions.
+Do not copy SQLite bidirectionally between Mac/PPE and Windows/prod.
+```
+
 ## Updating From GitHub
 
 Normal release flow:

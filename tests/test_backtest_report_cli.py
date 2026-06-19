@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+from dataclasses import replace
 
 from quant_ai_system.backtest import run_backtest
 from quant_ai_system.cli import main
 from quant_ai_system.config import AccountConfig, BacktestConfig, RiskConfig, load_config
 from quant_ai_system.data.providers import make_sample_market_data
 from quant_ai_system.engine import run_system
+from quant_ai_system.portfolio_store import upsert_position
 
 
 def test_backtest_materializes_three_strategy_metrics() -> None:
@@ -29,6 +31,7 @@ def test_run_system_writes_html_report(tmp_path: Path) -> None:
     result = run_system(config, report_path, offline_sample=True)
     html = report_path.read_text(encoding="utf-8")
     assert result.report_path == report_path
+    assert "今日行动面板" in html
     assert "核心 1-2 个持仓候选" in html
     assert "GPT / Supervisor 最终审查" in html
     assert "真实仓位 vs LOTS" in html
@@ -37,6 +40,19 @@ def test_run_system_writes_html_report(tmp_path: Path) -> None:
     assert "完整观察池与 LOTS 仓位" in html
     assert "Public Equity 风险解释字段" in html
     assert len(result.signals) > 0
+
+
+def test_open_positions_are_added_to_market_data_without_becoming_buy_candidates(tmp_path: Path) -> None:
+    config = load_config("config/default.yaml")
+    db = tmp_path / "portfolio.sqlite3"
+    upsert_position(db, "XYZ", 10, 50, 45, "outside universe")
+    config = replace(config, storage=replace(config.storage, db_path=str(db)))
+
+    result = run_system(config, tmp_path / "report.html", offline_sample=True)
+
+    assert "XYZ" in result.market_data.prices
+    assert "XYZ" not in {signal.ticker for signal in result.signals}
+    assert result.positions[0].ticker == "XYZ"
 
 
 def test_cli_offline_run(tmp_path: Path) -> None:

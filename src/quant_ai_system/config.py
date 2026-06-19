@@ -45,6 +45,7 @@ class AccountConfig:
 class UniverseConfig:
     tickers: list[str]
     leveraged_tickers: list[str]
+    tactical_tickers: list[str]
     benchmarks: list[str]
     primary_benchmark: str = "QQQ"
     theme_benchmark: str = "SMH"
@@ -85,6 +86,8 @@ class TelegramConfig:
     chat_id_env: str = "TELEGRAM_CHAT_ID"
     parse_mode: str = ""
     disable_web_page_preview: bool = True
+    command_polling_enabled: bool = True
+    command_poll_interval_seconds: float = 5.0
 
 
 @dataclass(frozen=True)
@@ -191,6 +194,7 @@ def load_config(path: str | Path) -> AppConfig:
     universe = UniverseConfig(
         tickers=_upper_list(universe_raw.get("tickers", DEFAULT_TICKERS)),
         leveraged_tickers=_upper_list(universe_raw.get("leveraged_tickers", [])),
+        tactical_tickers=_upper_list(universe_raw.get("tactical_tickers", universe_raw.get("leveraged_tickers", []))),
         benchmarks=_upper_list(universe_raw.get("benchmarks", ["QQQ", "SMH", "SPY"])),
         primary_benchmark=str(universe_raw.get("primary_benchmark", "QQQ")).upper(),
         theme_benchmark=str(universe_raw.get("theme_benchmark", "SMH")).upper(),

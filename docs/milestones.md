@@ -209,6 +209,28 @@ Acceptance criteria:
 - Report explains stop-loss risk versus risk budget.
 - The system does not automatically tell the user to immediately rebalance legacy positions; it suggests risk actions.
 
+## Milestone 5C: Actionable Daily Report And Remote Position Commands
+
+Status: `Done`
+
+Goal: make daily alerts decision-useful and allow safe Telegram-based manual position updates on the Windows prod host.
+
+Deliverables:
+
+- Open positions are automatically included in market-data downloads. `Done`
+- Missing held-position market data is marked as data-fix priority instead of generic LOTS drift. `Done`
+- Telegram report is ordered by action priority. `Done`
+- Stock candidates and tactical ETF candidates are separated. `Done`
+- HTML report includes a front-page action panel. `Done`
+- Telegram write commands require `/confirm <id>` before SQLite mutation. `Done`
+- Unauthorized chat ids are rejected. `Done`
+
+Acceptance criteria:
+
+- A report with multiple no-data holdings must state a data-fix action before any candidate list.
+- Non-universe holdings can be monitored for exit/protection but do not become buy candidates.
+- Telegram command tests prove no write occurs before confirmation.
+
 ## Milestone 6: Backtest System Enhancement
 
 Status: `Not started`

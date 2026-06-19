@@ -70,9 +70,13 @@ def evaluate_position_drift(
     notes: list[str] = []
     severity = 0
 
-    if signal is None:
-        severity = max(severity, 50)
-        notes.append("没有系统 LOTS 信号，先人工复核，不新增仓位")
+    if signal is None and close is None:
+        severity = max(severity, 95)
+        notes.append("持仓 ticker 没有可用行情，无法判断盈亏、止损和仓位风险")
+        notes.append("优先修正 ticker、增加 symbol mapping，或确认 FMP/yfinance/Stooq 是否覆盖")
+    elif signal is None:
+        severity = max(severity, 20)
+        notes.append("持仓不在当前股票池，只做退出/止损管理，不作为新增候选")
     else:
         if drift_pct is not None:
             if drift_pct >= 1.0:
@@ -97,7 +101,10 @@ def evaluate_position_drift(
             severity = max(severity, 40)
             notes.append("实际仓位比例高于系统目标权重")
 
-    if stop_loss_nav_pct is not None:
+    if signal is None and close is not None and stop is None:
+        severity = max(severity, 50)
+        notes.append("非股票池持仓缺少手动止损价，无法计算可接受亏损")
+    elif stop_loss_nav_pct is not None:
         if stop_loss_nav_pct >= risk_budget * 2:
             severity = max(severity, 90)
             notes.append("跌到保护/止损线的亏损超过风险预算 2 倍")
@@ -106,6 +113,8 @@ def evaluate_position_drift(
             notes.append("跌到保护/止损线的亏损超过系统风险预算")
         else:
             notes.append("止损风险在系统风险预算内")
+    elif close is None:
+        severity = max(severity, 95)
     else:
         severity = max(severity, 40)
         notes.append("缺少价格或止损线，无法计算止损风险")
@@ -114,7 +123,11 @@ def evaluate_position_drift(
         severity = max(severity, exit_review.severity)
         notes.append(f"利润保护/退出规则已触发：{exit_review.action}")
 
-    if severity >= 90:
+    if signal is None and close is None:
+        action = "数据修复优先"
+    elif signal is None and close is not None and severity < 50:
+        action = "非股票池持仓/继续监控"
+    elif severity >= 90:
         action = "严重超配/优先降风险"
     elif severity >= 70:
         action = "超配/建议分批减仓"

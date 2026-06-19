@@ -27,7 +27,8 @@ def test_telegram_message_contains_action_sections(tmp_path: Path) -> None:
     message = build_telegram_message(result)
 
     assert "Quant AI 今日提醒" in message
-    assert "核心候选" in message
+    assert "股票候选" in message
+    assert "观察池风控候选" not in message
     assert "完整报告" in message
 
 

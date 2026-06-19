@@ -33,6 +33,10 @@ universe:
     - TQQQ
     - SOXL
     - USD
+  tactical_tickers:
+    - TQQQ
+    - SOXL
+    - USD
   benchmarks:
     - QQQ
     - SMH
@@ -71,6 +75,8 @@ telegram:
   chat_id_env: TELEGRAM_CHAT_ID
   parse_mode: ""
   disable_web_page_preview: true
+  command_polling_enabled: true
+  command_poll_interval_seconds: 5
 
 risk:
   profile: aggressive

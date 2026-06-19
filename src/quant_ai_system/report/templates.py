@@ -43,6 +43,33 @@ REPORT_TEMPLATE = """<!doctype html>
     </div>
 
     <section>
+      <h2>今日行动面板</h2>
+      <table>
+        <thead><tr><th>优先级</th><th>对象</th><th>结论</th><th>为什么</th></tr></thead>
+        <tbody>
+          {% for d in action_summary.data_fix_positions %}
+          <tr><td><span class="tag exit">数据修复</span></td><td><b>{{ d.ticker }}</b></td><td>{{ d.action }}</td><td>{{ "; ".join(d.notes[:2]) }}</td></tr>
+          {% endfor %}
+          {% for r in action_summary.position_exit_actions %}
+          <tr><td><span class="tag {{ 'exit' if r.severity >= 70 else 'trim' }}">持仓行动</span></td><td><b>{{ r.ticker }}</b></td><td>{{ r.action }}</td><td>{{ "; ".join(r.notes[:2]) }}</td></tr>
+          {% endfor %}
+          {% for d in action_summary.position_size_actions %}
+          <tr><td><span class="tag trim">仓位风险</span></td><td><b>{{ d.ticker }}</b></td><td>{{ d.action }}</td><td>{{ "; ".join(d.notes[:2]) }}</td></tr>
+          {% endfor %}
+          {% for s in action_summary.stock_candidates %}
+          <tr><td><span class="tag buy">股票候选</span></td><td><b>{{ s.ticker }}</b></td><td>{{ s.action }} · {{ "%.1f"|format(s.score) }}</td><td>目标 {{ "%.0f"|format(s.position.target_shares) }} 股；止损 {{ "%.2f"|format(s.position.stop_price) }}</td></tr>
+          {% endfor %}
+          {% for s in action_summary.tactical_candidates %}
+          <tr><td><span class="tag watch">战术ETF</span></td><td><b>{{ s.ticker }}</b></td><td>{{ s.action }} · {{ "%.1f"|format(s.score) }}</td><td>{{ s.position.unwanted_risk }}；{{ s.position.liquidity_exit_posture }}</td></tr>
+          {% endfor %}
+          {% if not action_summary.data_fix_positions and not action_summary.position_exit_actions and not action_summary.position_size_actions and not action_summary.stock_candidates and not action_summary.tactical_candidates %}
+          <tr><td colspan="4" class="muted">{{ action_summary.no_action_message }}</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </section>
+
+    <section>
       <h2>核心 1-2 个持仓候选</h2>
       <table>
         <thead><tr><th>Ticker</th><th>动作</th><th>综合分</th><th>技术分</th><th>质量分</th><th>初始股数</th><th>目标股数</th><th>止损参考</th><th>质量说明</th></tr></thead>

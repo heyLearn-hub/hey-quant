@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from quant_ai_system.action_summary import build_action_summary
 from quant_ai_system.config import load_config
 from quant_ai_system.emailer import send_summary_email
 from quant_ai_system.engine import run_system
@@ -186,16 +187,18 @@ def main(argv: list[str] | None = None) -> int:
         print("Telegram: sent")
     print(f"Report: {result.report_path}")
     print(f"Signals: {len(result.signals)}")
-    approved = {review.ticker for review in result.supervisor_reviews if review.decision == "approve_for_consideration"}
-    core = [
-        signal for signal in sorted(result.signals, key=lambda item: item.score, reverse=True)
-        if (
-            signal.ticker in approved
-            and signal.score >= config.risk.min_core_score
-            and ("加仓" in signal.action or "小仓" in signal.action)
-        )
-    ][: config.risk.max_positions]
-    print(f"Core candidates: {', '.join(signal.ticker for signal in core) if core else 'none'}")
+    action_summary = build_action_summary(
+        result.signals,
+        result.supervisor_reviews,
+        result.exit_reviews,
+        result.drift_reviews,
+        result.news_briefs,
+        set(result.tactical_tickers),
+        config.risk.max_positions,
+    )
+    print(f"Stock candidates: {', '.join(signal.ticker for signal in action_summary.stock_candidates) if action_summary.stock_candidates else 'none'}")
+    print(f"Tactical ETF candidates: {', '.join(signal.ticker for signal in action_summary.tactical_candidates) if action_summary.tactical_candidates else 'none'}")
+    print(f"Data fix positions: {', '.join(review.ticker for review in action_summary.data_fix_positions) if action_summary.data_fix_positions else 'none'}")
     print(f"Supervisor reviews: {len(result.supervisor_reviews)}")
     print(f"Backtest strategies: {len(result.backtest.metrics)}")
     print(f"Portfolio mode: {result.portfolio_risk.mode}")

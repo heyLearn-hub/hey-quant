@@ -45,6 +45,10 @@ def _history_since_open(indicators: pd.DataFrame, opened_at: str) -> pd.DataFram
     if opened.tzinfo is not None:
         opened = opened.tz_convert(None)
     index = pd.to_datetime(indicators.index)
+    if getattr(index, "tz", None) is not None and opened.tzinfo is None:
+        opened = opened.tz_localize(index.tz)
+    elif getattr(index, "tz", None) is None and opened.tzinfo is not None:
+        opened = opened.tz_convert(None)
     return indicators.loc[index >= opened] if (index >= opened).any() else indicators
 
 
