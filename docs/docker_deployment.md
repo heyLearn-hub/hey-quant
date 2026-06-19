@@ -117,6 +117,29 @@ Supported commands:
 
 Write commands first create a pending action. The SQLite portfolio changes only after `/confirm <id>`. This records manual trades and stops; it does not connect to a broker or place orders.
 
+## Lightweight Monitor And Aliases
+
+The long-running web service also starts a lightweight monitor when `monitor.enabled` is true. This is not an institutional data platform. It only keeps enough local state for personal alerts:
+
+```text
+symbol aliases
+latest pricing snapshots
+data health checks
+deduped news events
+deduped monitor alerts
+```
+
+Useful commands:
+
+```bash
+docker compose --profile job run --rm quant-ai-job alias-list --config config/default.yaml
+docker compose --profile job run --rm quant-ai-job alias-set SNXX NVDA --config config/default.yaml --note "broker symbol mapping"
+docker compose --profile job run --rm quant-ai-job monitor-once --config config/default.yaml
+docker compose --profile job run --rm quant-ai-job monitor-status --config config/default.yaml
+```
+
+If a broker symbol has no vendor coverage, add an alias rather than editing the original position ticker. Reports keep the broker symbol visible while data pulls use the mapped symbol.
+
 Production state rule:
 
 ```text

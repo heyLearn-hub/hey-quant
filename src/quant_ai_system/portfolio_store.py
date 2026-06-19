@@ -28,6 +28,57 @@ class StoredTrade:
     note: str
 
 
+@dataclass(frozen=True)
+class SymbolAlias:
+    broker_symbol: str
+    data_symbol: str
+    note: str
+    updated_at: str
+
+
+@dataclass(frozen=True)
+class DataHealthRecord:
+    ticker: str
+    check_type: str
+    provider: str
+    ok: bool
+    message: str
+    checked_at: str
+
+
+@dataclass(frozen=True)
+class PricingSnapshot:
+    ticker: str
+    data_symbol: str
+    provider: str
+    price: float
+    change_pct: float | None
+    session: str
+    checked_at: str
+
+
+@dataclass(frozen=True)
+class NewsEventRecord:
+    event_key: str
+    ticker: str
+    title: str
+    url: str
+    published_at: str
+    priority: str
+    pushed: bool
+    created_at: str
+
+
+@dataclass(frozen=True)
+class MonitorAlertRecord:
+    alert_key: str
+    ticker: str
+    category: str
+    priority: str
+    message: str
+    created_at: str
+
+
 def _connect(db_path: str | Path) -> sqlite3.Connection:
     path = Path(db_path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -61,6 +112,69 @@ def init_db(db_path: str | Path) -> None:
                 price REAL NOT NULL,
                 executed_at TEXT NOT NULL,
                 note TEXT NOT NULL DEFAULT ''
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS symbol_aliases (
+                broker_symbol TEXT PRIMARY KEY,
+                data_symbol TEXT NOT NULL,
+                note TEXT NOT NULL DEFAULT '',
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS data_health (
+                ticker TEXT NOT NULL,
+                check_type TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                ok INTEGER NOT NULL,
+                message TEXT NOT NULL,
+                checked_at TEXT NOT NULL,
+                PRIMARY KEY (ticker, check_type, provider)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS pricing_snapshots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticker TEXT NOT NULL,
+                data_symbol TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                price REAL NOT NULL,
+                change_pct REAL,
+                session TEXT NOT NULL,
+                checked_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS news_events (
+                event_key TEXT PRIMARY KEY,
+                ticker TEXT NOT NULL,
+                title TEXT NOT NULL,
+                url TEXT NOT NULL,
+                published_at TEXT NOT NULL,
+                priority TEXT NOT NULL,
+                pushed INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS monitor_alerts (
+                alert_key TEXT PRIMARY KEY,
+                ticker TEXT NOT NULL,
+                category TEXT NOT NULL,
+                priority TEXT NOT NULL,
+                message TEXT NOT NULL,
+                created_at TEXT NOT NULL
             )
             """
         )
@@ -161,3 +275,129 @@ def close_position(db_path: str | Path, ticker: str, note: str = "") -> None:
     with _connect(db_path) as conn:
         conn.execute("UPDATE positions SET status = 'closed', thesis_note = thesis_note || ? WHERE ticker = ?", (f"\n{note}" if note else "", ticker))
 
+
+def upsert_symbol_alias(db_path: str | Path, broker_symbol: str, data_symbol: str, note: str = "") -> None:
+    init_db(db_path)
+    now = datetime.now(tz=UTC).isoformat(timespec="seconds")
+    with _connect(db_path) as conn:
+        conn.execute(
+            """
+            INSERT INTO symbol_aliases (broker_symbol, data_symbol, note, updated_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(broker_symbol) DO UPDATE SET
+                data_symbol = excluded.data_symbol,
+                note = excluded.note,
+                updated_at = excluded.updated_at
+            """,
+            (broker_symbol.strip().upper(), data_symbol.strip().upper(), note, now),
+        )
+
+
+def list_symbol_aliases(db_path: str | Path) -> list[SymbolAlias]:
+    init_db(db_path)
+    with _connect(db_path) as conn:
+        rows = conn.execute("SELECT * FROM symbol_aliases ORDER BY broker_symbol").fetchall()
+    return [SymbolAlias(row["broker_symbol"], row["data_symbol"], row["note"], row["updated_at"]) for row in rows]
+
+
+def get_data_symbol(db_path: str | Path, broker_symbol: str) -> str:
+    init_db(db_path)
+    ticker = broker_symbol.strip().upper()
+    with _connect(db_path) as conn:
+        row = conn.execute("SELECT data_symbol FROM symbol_aliases WHERE broker_symbol = ?", (ticker,)).fetchone()
+    return str(row["data_symbol"]).upper() if row else ticker
+
+
+def upsert_data_health(db_path: str | Path, ticker: str, check_type: str, provider: str, ok: bool, message: str) -> None:
+    init_db(db_path)
+    now = datetime.now(tz=UTC).isoformat(timespec="seconds")
+    with _connect(db_path) as conn:
+        conn.execute(
+            """
+            INSERT INTO data_health (ticker, check_type, provider, ok, message, checked_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(ticker, check_type, provider) DO UPDATE SET
+                ok = excluded.ok,
+                message = excluded.message,
+                checked_at = excluded.checked_at
+            """,
+            (ticker.strip().upper(), check_type, provider, 1 if ok else 0, message, now),
+        )
+
+
+def list_data_health(db_path: str | Path, limit: int = 50) -> list[DataHealthRecord]:
+    init_db(db_path)
+    with _connect(db_path) as conn:
+        rows = conn.execute("SELECT * FROM data_health ORDER BY checked_at DESC LIMIT ?", (limit,)).fetchall()
+    return [
+        DataHealthRecord(row["ticker"], row["check_type"], row["provider"], bool(row["ok"]), row["message"], row["checked_at"])
+        for row in rows
+    ]
+
+
+def insert_pricing_snapshot(db_path: str | Path, ticker: str, data_symbol: str, provider: str, price: float, change_pct: float | None, session: str) -> None:
+    init_db(db_path)
+    now = datetime.now(tz=UTC).isoformat(timespec="seconds")
+    with _connect(db_path) as conn:
+        conn.execute(
+            "INSERT INTO pricing_snapshots (ticker, data_symbol, provider, price, change_pct, session, checked_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (ticker.strip().upper(), data_symbol.strip().upper(), provider, price, change_pct, session, now),
+        )
+
+
+def list_pricing_snapshots(db_path: str | Path, limit: int = 50) -> list[PricingSnapshot]:
+    init_db(db_path)
+    with _connect(db_path) as conn:
+        rows = conn.execute("SELECT * FROM pricing_snapshots ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+    return [
+        PricingSnapshot(row["ticker"], row["data_symbol"], row["provider"], float(row["price"]), float(row["change_pct"]) if row["change_pct"] is not None else None, row["session"], row["checked_at"])
+        for row in rows
+    ]
+
+
+def insert_news_event(db_path: str | Path, event_key: str, ticker: str, title: str, url: str, published_at: str, priority: str, pushed: bool = False) -> bool:
+    init_db(db_path)
+    now = datetime.now(tz=UTC).isoformat(timespec="seconds")
+    with _connect(db_path) as conn:
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO news_events (event_key, ticker, title, url, published_at, priority, pushed, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (event_key, ticker.strip().upper(), title, url, published_at, priority, 1 if pushed else 0, now),
+        )
+    return cur.rowcount > 0
+
+
+def mark_news_event_pushed(db_path: str | Path, event_key: str) -> None:
+    init_db(db_path)
+    with _connect(db_path) as conn:
+        conn.execute("UPDATE news_events SET pushed = 1 WHERE event_key = ?", (event_key,))
+
+
+def list_news_events(db_path: str | Path, limit: int = 50) -> list[NewsEventRecord]:
+    init_db(db_path)
+    with _connect(db_path) as conn:
+        rows = conn.execute("SELECT * FROM news_events ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+    return [
+        NewsEventRecord(row["event_key"], row["ticker"], row["title"], row["url"], row["published_at"], row["priority"], bool(row["pushed"]), row["created_at"])
+        for row in rows
+    ]
+
+
+def insert_monitor_alert(db_path: str | Path, alert_key: str, ticker: str, category: str, priority: str, message: str) -> bool:
+    init_db(db_path)
+    now = datetime.now(tz=UTC).isoformat(timespec="seconds")
+    with _connect(db_path) as conn:
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO monitor_alerts (alert_key, ticker, category, priority, message, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (alert_key, ticker.strip().upper(), category, priority, message, now),
+        )
+    return cur.rowcount > 0
+
+
+def list_monitor_alerts(db_path: str | Path, limit: int = 50) -> list[MonitorAlertRecord]:
+    init_db(db_path)
+    with _connect(db_path) as conn:
+        rows = conn.execute("SELECT * FROM monitor_alerts ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+    return [
+        MonitorAlertRecord(row["alert_key"], row["ticker"], row["category"], row["priority"], row["message"], row["created_at"])
+        for row in rows
+    ]

@@ -17,8 +17,10 @@ from urllib.parse import parse_qs, urlparse
 
 from quant_ai_system.config import load_config
 from quant_ai_system.engine import RunResult, run_system
-from quant_ai_system.portfolio_store import close_position, list_positions, list_trades, record_trade, upsert_position
+from quant_ai_system.monitor import MonitorListener
+from quant_ai_system.portfolio_store import close_position, list_data_health, list_positions, list_symbol_aliases, list_trades, record_trade, upsert_position, upsert_symbol_alias
 from quant_ai_system.telegram_commands import TelegramCommandListener, TelegramCommandProcessor
+from quant_ai_system.telegram_notifier import send_telegram_text
 
 
 @dataclass
@@ -265,6 +267,15 @@ def make_handler(state: ServerState) -> type[BaseHTTPRequestHandler]:
                     close_position(_db_path(state), form.get("ticker", [""])[0], form.get("note", [""])[0])
                     self._redirect("/")
                     return
+                if parsed.path == "/aliases/upsert":
+                    upsert_symbol_alias(
+                        _db_path(state),
+                        form.get("broker_symbol", [""])[0],
+                        form.get("data_symbol", [""])[0],
+                        form.get("note", [""])[0],
+                    )
+                    self._redirect("/")
+                    return
             except Exception as exc:
                 self._render_home(message=f"保存失败：{html.escape(str(exc))}", status=400)
                 return
@@ -285,9 +296,13 @@ def make_handler(state: ServerState) -> type[BaseHTTPRequestHandler]:
             try:
                 positions = list_positions(_db_path(state))
                 trades = list_trades(_db_path(state), limit=10)
+                aliases = list_symbol_aliases(_db_path(state))
+                health = list_data_health(_db_path(state), limit=8)
             except Exception:
                 positions = []
                 trades = []
+                aliases = []
+                health = []
             position_rows = "".join(
                 f"<tr><td><b>{html.escape(p.ticker)}</b></td><td>{p.shares:.2f}</td><td>{p.average_cost:.2f}</td><td>{p.current_stop if p.current_stop is not None else ''}</td><td>{html.escape(p.thesis_note)}</td>"
                 f"<td><form method='post' action='/positions/close'><input type='hidden' name='ticker' value='{html.escape(p.ticker)}'><input name='note' placeholder='清仓备注'><button type='submit'>清仓</button></form></td></tr>"
@@ -297,6 +312,14 @@ def make_handler(state: ServerState) -> type[BaseHTTPRequestHandler]:
                 f"<tr><td>{html.escape(t.executed_at[:19])}</td><td><b>{html.escape(t.ticker)}</b></td><td>{html.escape(t.action)}</td><td>{t.shares:.2f}</td><td>{t.price:.2f}</td><td>{html.escape(t.note)}</td></tr>"
                 for t in trades
             ) or "<tr><td colspan='6' class='muted'>暂无交易记录</td></tr>"
+            alias_rows = "".join(
+                f"<tr><td><b>{html.escape(a.broker_symbol)}</b></td><td>{html.escape(a.data_symbol)}</td><td>{html.escape(a.note)}</td><td>{html.escape(a.updated_at[:19])}</td></tr>"
+                for a in aliases
+            ) or "<tr><td colspan='4' class='muted'>暂无 alias。若券商符号无行情，在这里映射到数据源 symbol。</td></tr>"
+            health_rows = "".join(
+                f"<tr><td><b>{html.escape(h.ticker)}</b></td><td>{html.escape(h.check_type)}</td><td>{html.escape(h.provider)}</td><td>{'OK' if h.ok else 'CHECK'}</td><td>{html.escape(h.message)}</td><td>{html.escape(h.checked_at[:19])}</td></tr>"
+                for h in health
+            ) or "<tr><td colspan='6' class='muted'>暂无 monitor 检查记录</td></tr>"
             body = f"""<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -369,6 +392,20 @@ def make_handler(state: ServerState) -> type[BaseHTTPRequestHandler]:
     <table><thead><tr><th>时间</th><th>Ticker</th><th>动作</th><th>股数</th><th>价格</th><th>备注</th></tr></thead><tbody>{trade_rows}</tbody></table>
   </div>
   <div class="panel">
+    <h2>Symbol Alias</h2>
+    <form method="post" action="/aliases/upsert" class="formgrid">
+      <label>券商符号<input name="broker_symbol" required placeholder="SNXX"></label>
+      <label>数据源符号<input name="data_symbol" required placeholder="NVDA"></label>
+      <label>备注<input name="note" placeholder="为什么映射"></label>
+      <button type="submit">保存 Alias</button>
+    </form>
+    <table><thead><tr><th>券商符号</th><th>数据源符号</th><th>备注</th><th>更新时间</th></tr></thead><tbody>{alias_rows}</tbody></table>
+  </div>
+  <div class="panel">
+    <h2>Monitor / Data Health</h2>
+    <table><thead><tr><th>Ticker</th><th>检查</th><th>来源</th><th>状态</th><th>说明</th><th>时间</th></tr></thead><tbody>{health_rows}</tbody></table>
+  </div>
+  <div class="panel">
     <b>状态</b>
     <p class="{'warn' if message or state.last_error else 'muted'}">{message or state.last_error or f'服务正常。数据问题：{issue_count}。真实行情源如果限流，报告会显示数据质量提示。'}</p>
     <p class="muted">配置：{html.escape(str(state.config_path))}<br>报告：{html.escape(str(state.report_path))}</p>
@@ -413,4 +450,14 @@ def serve(
         print("Telegram command listener: enabled")
     else:
         print("Telegram command listener: disabled")
+    monitor_listener = None
+    if config.monitor.enabled:
+        send_text = None
+        if os.environ.get(config.telegram.bot_token_env, "").strip() and os.environ.get(config.telegram.chat_id_env, "").strip():
+            send_text = lambda text: send_telegram_text(config, text)
+        monitor_listener = MonitorListener(config, send_text=send_text)
+        monitor_listener.start()
+        print("Monitor listener: enabled")
+    else:
+        print("Monitor listener: disabled")
     server.serve_forever()

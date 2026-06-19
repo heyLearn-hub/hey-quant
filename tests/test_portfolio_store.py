@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from quant_ai_system.portfolio_store import close_position, list_positions, list_trades, record_trade, upsert_position
+from quant_ai_system.portfolio_store import close_position, get_data_symbol, list_positions, list_symbol_aliases, list_trades, record_trade, upsert_position, upsert_symbol_alias
 
 
 def test_portfolio_store_round_trip(tmp_path: Path) -> None:
@@ -22,3 +22,14 @@ def test_portfolio_store_round_trip(tmp_path: Path) -> None:
     assert list_positions(db) == []
     assert list_positions(db, include_closed=True)[0].status == "closed"
 
+
+def test_symbol_alias_round_trip(tmp_path: Path) -> None:
+    db = tmp_path / "portfolio.sqlite3"
+
+    upsert_symbol_alias(db, "snxx", "nvda", "broker alias")
+
+    assert get_data_symbol(db, "SNXX") == "NVDA"
+    assert get_data_symbol(db, "MSFT") == "MSFT"
+    aliases = list_symbol_aliases(db)
+    assert aliases[0].broker_symbol == "SNXX"
+    assert aliases[0].data_symbol == "NVDA"

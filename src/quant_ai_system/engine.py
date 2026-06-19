@@ -12,7 +12,7 @@ from quant_ai_system.indicators import build_indicators
 from quant_ai_system.position_drift import PositionDriftReview, evaluate_positions_drift
 from quant_ai_system.quality import assess_quality
 from quant_ai_system.report.html import render_report
-from quant_ai_system.portfolio_store import StoredPosition, list_positions
+from quant_ai_system.portfolio_store import StoredPosition, get_data_symbol, list_positions
 from quant_ai_system.research import NewsBrief, build_news_briefs
 from quant_ai_system.risk import PortfolioRiskState, evaluate_portfolio_drawdown
 from quant_ai_system.signals import SignalResult, evaluate_signal
@@ -38,13 +38,19 @@ class RunResult:
 def run_system(config: AppConfig, out_path: str | Path, offline_sample: bool = False) -> RunResult:
     positions = list_positions(config.storage.db_path)
     candidate_tickers = list(dict.fromkeys(config.universe.tickers + config.universe.leveraged_tickers + config.universe.tactical_tickers))
-    held_tickers = [position.ticker for position in positions]
-    tickers = list(dict.fromkeys(candidate_tickers + held_tickers + config.universe.benchmarks))
+    held_symbol_map = {position.ticker: get_data_symbol(config.storage.db_path, position.ticker) for position in positions}
+    held_data_tickers = list(held_symbol_map.values())
+    tickers = list(dict.fromkeys(candidate_tickers + held_data_tickers + config.universe.benchmarks))
     if offline_sample:
         market_data = make_sample_market_data(tickers, years=min(config.data.years, 5))
         market_data.issues.append(DataIssue("*", "sample", "offline sample mode; not live market data"))
     else:
         market_data = get_market_data(tickers, config.data)
+    for broker_symbol, data_symbol in held_symbol_map.items():
+        if broker_symbol != data_symbol and data_symbol in market_data.prices:
+            market_data.prices[broker_symbol] = market_data.prices[data_symbol]
+            if broker_symbol not in tickers:
+                tickers.append(broker_symbol)
     benchmark = market_data.prices.get(config.universe.primary_benchmark)
 
     signals: list[SignalResult] = []

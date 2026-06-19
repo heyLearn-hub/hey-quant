@@ -119,6 +119,15 @@ research:
   news_max_tickers: 12
   news_lookback_days: 14
 
+monitor:
+  enabled: true
+  price_check_interval_minutes: 30
+  news_check_interval_minutes: 60
+  max_pushes_per_session: 5
+  ai_review_enabled: true
+  stop_near_pct: 0.03
+  large_drop_pct: 0.05
+
 quality:
   enabled: true
   technical_weight: 0.65

@@ -144,6 +144,17 @@ class ResearchConfig:
 
 
 @dataclass(frozen=True)
+class MonitorConfig:
+    enabled: bool = True
+    price_check_interval_minutes: float = 30
+    news_check_interval_minutes: float = 60
+    max_pushes_per_session: int = 5
+    ai_review_enabled: bool = True
+    stop_near_pct: float = 0.03
+    large_drop_pct: float = 0.05
+
+
+@dataclass(frozen=True)
 class QualityConfig:
     enabled: bool = True
     technical_weight: float = 0.65
@@ -179,6 +190,7 @@ class AppConfig:
     backtest: BacktestConfig
     report: ReportConfig
     research: ResearchConfig
+    monitor: MonitorConfig
     quality: QualityConfig
     supervisor: SupervisorConfig
 
@@ -210,6 +222,7 @@ def load_config(path: str | Path) -> AppConfig:
         backtest=BacktestConfig(**raw.get("backtest", {})),
         report=ReportConfig(**raw.get("report", {})),
         research=ResearchConfig(**raw.get("research", {})),
+        monitor=MonitorConfig(**raw.get("monitor", {})),
         quality=QualityConfig(**raw.get("quality", {})),
         supervisor=SupervisorConfig(**raw.get("supervisor", {})),
     )

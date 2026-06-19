@@ -9,6 +9,8 @@ from quant_ai_system.emailer import send_summary_email
 from quant_ai_system.engine import run_system
 from quant_ai_system.data import check_provider_data, get_market_data, make_sample_market_data
 from quant_ai_system.factors import run_factor_experiment, write_factor_report
+from quant_ai_system.monitor import format_monitor_status, run_monitor_once
+from quant_ai_system.portfolio_store import list_symbol_aliases, upsert_symbol_alias
 from quant_ai_system.research import build_news_briefs
 from quant_ai_system.server import install_launch_agent, serve, service_status, uninstall_launch_agent
 from quant_ai_system.telegram_notifier import fetch_telegram_updates, send_telegram_message
@@ -76,6 +78,22 @@ def _build_parser() -> argparse.ArgumentParser:
     news_check = sub.add_parser("news-check")
     news_check.add_argument("--config", default="config/default.yaml")
     news_check.add_argument("--tickers", default="", help="Comma-separated ticker override. Defaults to configured universe.")
+
+    monitor_once = sub.add_parser("monitor-once")
+    monitor_once.add_argument("--config", default="config/default.yaml")
+    monitor_once.add_argument("--send-telegram", action="store_true")
+
+    monitor_status = sub.add_parser("monitor-status")
+    monitor_status.add_argument("--config", default="config/default.yaml")
+
+    alias_list = sub.add_parser("alias-list")
+    alias_list.add_argument("--config", default="config/default.yaml")
+
+    alias_set = sub.add_parser("alias-set")
+    alias_set.add_argument("broker_symbol")
+    alias_set.add_argument("data_symbol")
+    alias_set.add_argument("--config", default="config/default.yaml")
+    alias_set.add_argument("--note", default="")
     return parser
 
 
@@ -155,6 +173,39 @@ def main(argv: list[str] | None = None) -> int:
             headline = brief.headlines[0] if brief.headlines else brief.data_issue or "-"
             print(f"{brief.ticker}\tnews={brief.article_count}\tcatalyst={catalyst}\trisk={risk}\t{headline}")
         return 1 if failures and all(brief.article_count == 0 for brief in briefs) else 0
+
+    if args.command == "alias-list":
+        aliases = list_symbol_aliases(config.storage.db_path)
+        if not aliases:
+            print("No aliases configured.")
+        for alias in aliases:
+            print(f"{alias.broker_symbol}\t{alias.data_symbol}\t{alias.note}\t{alias.updated_at}")
+        return 0
+
+    if args.command == "alias-set":
+        upsert_symbol_alias(config.storage.db_path, args.broker_symbol, args.data_symbol, args.note)
+        print(f"Alias set: {args.broker_symbol.strip().upper()} -> {args.data_symbol.strip().upper()}")
+        return 0
+
+    if args.command == "monitor-status":
+        print(format_monitor_status(config))
+        return 0
+
+    if args.command == "monitor-once":
+        send_text = None
+        if args.send_telegram:
+            from quant_ai_system.telegram_notifier import send_telegram_text
+
+            send_text = lambda text: send_telegram_text(config, text)
+        result = run_monitor_once(config, send_text=send_text)
+        print(f"Monitor alerts: {len(result.alerts)}")
+        print(f"Checked positions: {result.checked_positions}")
+        print(f"Checked news tickers: {result.checked_news_tickers}")
+        if result.data_issues:
+            print(f"Data issues: {len(result.data_issues)}")
+        for alert in result.alerts:
+            print(f"{alert.priority}\t{alert.ticker}\t{alert.category}\t{alert.action}\t{alert.message}")
+        return 0
 
     if args.command == "show-config":
         print(f"NAV: {config.account.nav:,.0f} {config.account.currency}")

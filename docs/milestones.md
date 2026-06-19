@@ -231,6 +231,30 @@ Acceptance criteria:
 - Non-universe holdings can be monitored for exit/protection but do not become buy candidates.
 - Telegram command tests prove no write occurs before confirmation.
 
+## Milestone 5D: Lightweight Monitor Foundation
+
+Status: `Done`
+
+Goal: use the Windows always-on service for low-noise position and news monitoring without building an institutional data platform.
+
+Deliverables:
+
+- Symbol alias table for broker symbol to data symbol mapping. `Done`
+- Data health table for price/news checks. `Done`
+- Pricing snapshots for latest monitored quotes. `Done`
+- News event dedupe table. `Done`
+- Monitor alert dedupe table. `Done`
+- `monitor-once`, `monitor-status`, `alias-list`, and `alias-set` commands. `Done`
+- Dashboard alias entry and data-health view. `Done`
+- Background monitor listener in `quant-ai-web`. `Done`
+
+Acceptance criteria:
+
+- Alias mapping allows a broker symbol to use a vendor symbol while preserving the broker symbol in reports.
+- Missing quote data creates a data-fix alert instead of a trading signal.
+- Repeated price/data/news events are deduped.
+- Monitor failures do not block the dashboard or Telegram command listener.
+
 ## Milestone 6: Backtest System Enhancement
 
 Status: `Not started`
