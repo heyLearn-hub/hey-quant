@@ -111,3 +111,34 @@ def test_analyze_ticker_returns_watch_or_candidate_with_risk_fields(monkeypatch)
     assert response.conclusion in {"watch", "small_probe_candidate", "do_not_chase"}
     assert "intended alpha" in text
     assert "MRVL" in text
+
+
+def test_analyze_ticker_outputs_action_card_not_indicator_dump(monkeypatch) -> None:
+    config = load_config("config/default.yaml")
+    monkeypatch.setattr("quant_ai_system.interactive_analyst._latest_price", lambda config, ticker: (138.5, "fmp quote"))
+    monkeypatch.setattr(
+        "quant_ai_system.interactive_analyst._ticker_action_context",
+        lambda config, ticker, price: {
+            "conclusion": "do_not_chase",
+            "binding": "短线涨幅过大，等待回踩确认",
+            "technical": ["趋势强，但60日涨幅过热", "ATR 7.4%"],
+            "levels": ["当前不追", "第一观察区 124.64", "失效线 118.94"],
+            "sizing": ["最大建议仓位 2%-3% NAV", "没有止损不允许买"],
+            "risks": ["新闻/叙事驱动，容易冲高回落"],
+            "triggers": ["回踩后重新站稳再审查", "跌破失效线则放弃"],
+        },
+    )
+    monkeypatch.setattr("quant_ai_system.interactive_analyst._news_snapshot", lambda config, ticker: ["催化: AI, data center"])
+
+    response = analyze_ticker(config, "INTC")
+    text = format_analyst_response(response)
+
+    assert response.conclusion == "do_not_chase"
+    assert "今日结论" in text
+    assert "可执行价位" in text
+    assert "仓位建议" in text
+    assert "风险原因" in text
+    assert "改变结论" in text
+    assert "第一观察区 124.64" in text
+    assert "最大建议仓位 2%-3% NAV" in text
+    assert "未提供交易计划，不计算最终股数" not in text
