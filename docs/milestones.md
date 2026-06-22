@@ -315,12 +315,16 @@ Acceptance criteria:
 
 ## Milestone 6: Backtest System Enhancement
 
-Status: `Not started`
+Status: `In progress`
 
 Goal: make strategy results more credible before relying on them.
 
 Deliverables:
 
+- Factor Research Pack v1 registry and grouped report. `Done`
+- Additional OHLCV factors for trend, momentum, volatility, drawdown, and risk-adjusted momentum. `Done`
+- Factor report states that results are research tools and do not automatically change production buy/sell rules. `Done`
+- Options and market sentiment are explicitly deferred until the base factor report proves the need. `Done`
 - In-sample and out-of-sample split.
 - Parameter grid tests, such as 20/60/120-day momentum.
 - Market regime slices.

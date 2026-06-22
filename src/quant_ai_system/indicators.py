@@ -31,9 +31,15 @@ def build_indicators(frame: pd.DataFrame, benchmark: pd.DataFrame | None = None)
     out["ma200"] = sma(close, 200)
     out["mom20"] = close.pct_change(20)
     out["mom60"] = close.pct_change(60)
+    out["mom120"] = close.pct_change(120)
     out["rsi14"] = rsi(close, 14)
     out["atr14"] = atr(out, 14)
+    out["atr_pct"] = out["atr14"] / close.replace(0, np.nan)
     out["volume_ma20"] = out["volume"].rolling(20, min_periods=20).mean()
+    out["trend_slope_50"] = out["ma50"] / out["ma50"].shift(20) - 1
+    out["trend_slope_200"] = out["ma200"] / out["ma200"].shift(60) - 1
+    out["dist_ma50"] = close / out["ma50"] - 1
+    out["dist_ma200"] = close / out["ma200"] - 1
     if benchmark is not None and not benchmark.empty:
         aligned = pd.concat([close, benchmark["close"].rename("benchmark_close")], axis=1).ffill()
         rel = aligned["close"] / aligned["benchmark_close"]
@@ -43,5 +49,9 @@ def build_indicators(frame: pd.DataFrame, benchmark: pd.DataFrame | None = None)
         out["rel20"] = np.nan
         out["rel60"] = np.nan
     out["daily_return"] = close.pct_change()
+    out["realized_vol20"] = out["daily_return"].rolling(20, min_periods=20).std() * np.sqrt(252)
+    out["realized_vol60"] = out["daily_return"].rolling(60, min_periods=60).std() * np.sqrt(252)
+    out["risk_adjusted_mom60"] = out["mom60"] / out["realized_vol60"].replace(0, np.nan)
+    out["drawdown60"] = close / close.rolling(60, min_periods=60).max() - 1
+    out["drawdown120"] = close / close.rolling(120, min_periods=120).max() - 1
     return out
-

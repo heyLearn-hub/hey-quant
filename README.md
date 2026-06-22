@@ -156,7 +156,7 @@ bin/quant-ai-local supervisor-log --config config/default.yaml --limit 20
 ## 模块
 
 - `data`: yfinance 主数据源，Stooq 兜底，统一成复权 OHLCV。
-- `indicators`: 均线、动量、RSI、ATR、相对强度。
+- `indicators`: 均线、动量、RSI、ATR、相对强度、波动率、回撤和趋势斜率。
 - `quality`: “股神式”质量股覆盖层，按护城河、现金流、资本回报、资产负债表和估值纪律给手工质量分。
 - `signals`: 技术分和质量分综合评分，默认技术 65%、质量 35%。
 - `portfolio`: LOTS 仓位控制，按账户净值、目标权重和风险预算换算股数；默认集中到 1-2 个核心持仓。
@@ -165,7 +165,7 @@ bin/quant-ai-local supervisor-log --config config/default.yaml --limit 20
 - `supervisor`: GPT/本地规则主管审查层，最后复核数据质量、仓位、止损、杠杆 ETF 风险和执行前检查。
 - `supervisor-log`: SQLite 决策日志，用于复盘每次 AI/本地规则审查的 provider、动作、分数和阻断原因。
 - `backtest`: 日线低频回测，包含滑点、下日成交和基准对比。
-- `factors`: 单因子实验，用于学习和验证动量、相对强度、RSI 等因子的有效性。
+- `factors`: Factor Research Pack，用于学习和验证趋势、动量、相对强度、波动、回撤和 RSI 等因子的有效性。
 - `telegram_notifier`: Telegram Bot 消息摘要。
 - `emailer`: Outlook/SMTP 邮件摘要备用。
 - `report`: 本地 HTML 报告。
@@ -357,13 +357,14 @@ Windows 可以把这些放进 `.env` 文件。发送命令：
 
 ## 因子实验怎么理解
 
-因子就是一个可以量化描述股票状态的指标，例如：
+因子就是一个可以量化描述股票状态的指标。当前 Factor Research Pack 会把因子分成：
 
-- `mom20`: 20日动量；
-- `mom60`: 60日动量；
-- `rel20`: 20日相对强度；
-- `rel60`: 60日相对强度；
-- `rsi14`: RSI。
+- `Momentum`: `mom20`, `mom60`, `mom120`, `risk_adjusted_mom60`;
+- `Trend`: `trend_slope_50`, `trend_slope_200`, `dist_ma50`, `dist_ma200`;
+- `Relative strength`: `rel20`, `rel60`;
+- `Volatility`: `realized_vol20`, `realized_vol60`, `atr_pct`;
+- `Drawdown`: `drawdown60`, `drawdown120`;
+- `Oscillator`: `rsi14`。
 
 因子实验会把股票按因子高低分组，然后看未来 20 个交易日收益：
 
@@ -371,7 +372,9 @@ Windows 可以把这些放进 `.env` 文件。发送命令：
 bin/quant-ai-local factor-test --config config/default.yaml --out outputs/factor_report.html
 ```
 
-如果 Top 分组未来收益明显高于 Bottom 分组，说明这个因子在当前样本里有区分度。这个结果只是研究工具，不是直接买卖信号。
+如果高分组未来收益明显高于低分组，说明这个因子在当前样本里有区分度。这个结果只是研究工具，不是直接买卖信号；新增因子不会自动改变生产买卖规则。
+
+期权墙、put/call、IV rank、skew 和市场情绪暂时不接入。只有当基础因子报告证明它们能改善真实决策，例如降低财报前误买或帮助控制拥挤交易风险，才进入下一阶段。
 
 ## 默认股票池
 

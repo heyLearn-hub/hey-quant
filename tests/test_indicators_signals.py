@@ -13,9 +13,33 @@ def test_indicator_frame_contains_core_columns() -> None:
     data = make_sample_market_data(["NVDA", "QQQ"], years=2)
     frame = build_indicators(data.prices["NVDA"], data.prices["QQQ"])
     latest = frame.dropna().iloc[-1]
-    for column in ["ma50", "ma200", "mom20", "mom60", "rsi14", "atr14", "rel20", "rel60"]:
+    for column in [
+        "ma50",
+        "ma200",
+        "mom20",
+        "mom60",
+        "mom120",
+        "rsi14",
+        "atr14",
+        "atr_pct",
+        "rel20",
+        "rel60",
+        "trend_slope_50",
+        "trend_slope_200",
+        "dist_ma50",
+        "dist_ma200",
+        "realized_vol20",
+        "realized_vol60",
+        "risk_adjusted_mom60",
+        "drawdown60",
+        "drawdown120",
+    ]:
         assert column in frame.columns
         assert pd.notna(latest[column])
+    assert latest["realized_vol20"] > 0
+    assert latest["atr_pct"] > 0
+    assert latest["drawdown60"] <= 0
+    assert latest["drawdown120"] <= 0
 
 
 def test_signal_evaluation_returns_position_and_risk_language() -> None:

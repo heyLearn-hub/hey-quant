@@ -14,7 +14,7 @@ This file defines what must be true before the project is treated as v1.0. It is
 | Action-first reports | Done | Data blockers, position actions, stock/ETF split, report quality checks | Continue improving report language from real examples |
 | Lightweight monitor | Done | alias, data_health, pricing snapshots, news dedupe, monitor alerts | Validate long-running Windows behavior |
 | AI Supervisor | In progress | DeepSeek/OpenAI adapter, local fallback, structured decisions, SQLite decision log | Add high-value news review discipline |
-| Backtest/factor research | Basic | Factor-test and three strategy backtest variants | Add in/out-of-sample and clearer regime/parameter reporting |
+| Backtest/factor research | In progress | Factor registry, grouped factor report, expanded OHLCV factors, and three strategy backtest variants | Add in/out-of-sample and clearer regime/parameter reporting |
 
 ## v1.0 Product Goal
 
@@ -134,6 +134,8 @@ Goal: make the strategy research good enough to challenge, not just display.
 
 Deliverables:
 
+- Factor registry and grouped factor research report. `Done`
+- Expanded OHLCV factor set for trend, momentum, volatility, drawdown, and risk-adjusted momentum. `Done`
 - In-sample and out-of-sample split.
 - Parameter grid for momentum windows such as 20/60/120.
 - Benchmark-relative results versus `QQQ`, `SMH`, and `SPY`.
