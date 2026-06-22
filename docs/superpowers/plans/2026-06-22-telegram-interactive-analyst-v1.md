@@ -470,7 +470,7 @@ Run:
 
 ```bash
 TELEGRAM_BOT_TOKEN=configured TELEGRAM_CHAT_ID=configured FMP_API_KEY=configured DEEPSEEK_API_KEY=configured bin/quant-ai-local release-check --config config/default.yaml
-rg -n "sk-e33d9|k7KT3|8854865200|AAHIxfBX8v7nWKVDJC" README.md bin docs src tests config scripts Dockerfile docker-compose.yml pyproject.toml requirements.txt -S
+rg -n "REAL_SECRET_PREFIX_1|REAL_SECRET_PREFIX_2|REAL_BOT_TOKEN_PREFIX" README.md bin docs src tests config scripts Dockerfile docker-compose.yml pyproject.toml requirements.txt -S
 ```
 
 Expected:

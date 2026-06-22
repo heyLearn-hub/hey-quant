@@ -313,6 +313,28 @@ Acceptance criteria:
 - Repeated price/data/news events are deduped.
 - Monitor failures do not block the dashboard or Telegram command listener.
 
+## Milestone 5E: Telegram Interactive Analyst V1
+
+Status: `Done`
+
+Goal: let the user actively ask for ticker, holding, and trade-plan feedback from Telegram without turning the service into a free-form trading chatbot.
+
+Deliverables:
+
+- `/check TICKER` quick single-name analysis. `Done`
+- `/position TICKER` open-position review for hold/protect-profit/trim/exit/data-fix decisions. `Done`
+- `/plan ACTION TICKER SHARES PRICE [stop STOP_PRICE]` read-only trade-plan review. `Done`
+- Public Equity risk fields in analyst responses. `Done`
+- Analyst commands do not mutate SQLite and do not create pending confirmations. `Done`
+- Existing confirmed write commands remain unchanged. `Done`
+
+Acceptance criteria:
+
+- Telegram analyst commands work only after the existing authorized chat check.
+- `/plan` can calculate notional, NAV percentage, and stop-based max loss.
+- `/position` can identify a profitable holding requiring profit protection.
+- Malformed analyst commands return usage text without crashing.
+
 ## Milestone 6: Backtest System Enhancement
 
 Status: `In progress`

@@ -109,6 +109,9 @@ Supported commands:
 
 ```text
 /pos
+/check TICKER
+/position TICKER
+/plan ACTION TICKER SHARES PRICE [stop STOP_PRICE]
 /buy TICKER SHARES PRICE note
 /add TICKER SHARES PRICE note
 /trim TICKER SHARES PRICE note
@@ -118,7 +121,7 @@ Supported commands:
 /confirm <id>
 ```
 
-Write commands first create a pending action. The SQLite portfolio changes only after `/confirm <id>`. This records manual trades and stops; it does not connect to a broker or place orders.
+`/check`, `/position`, and `/plan` are read-only analyst commands. They review tickers, current holdings, or proposed trades with Public Equity risk fields, but they do not create pending confirmations or write SQLite. Write commands first create a pending action. The SQLite portfolio changes only after `/confirm <id>`. This records manual trades and stops; it does not connect to a broker or place orders.
 
 ## Lightweight Monitor And Aliases
 

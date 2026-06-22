@@ -9,6 +9,7 @@ from typing import Callable
 from uuid import uuid4
 
 from quant_ai_system.config import AppConfig
+from quant_ai_system.interactive_analyst import TradePlan, analyze_position, analyze_ticker, format_analyst_response, review_trade_plan
 from quant_ai_system.portfolio_store import StoredPosition, close_position, list_positions, record_trade, upsert_position
 from quant_ai_system.telegram_notifier import fetch_telegram_updates, send_telegram_text
 
@@ -56,9 +57,16 @@ class TelegramCommandProcessor:
 
     def handle_text(self, chat_id: str, text: str) -> str:
         parts = text.strip().split(maxsplit=4)
+        command_parts = text.strip().split()
         command = parts[0].lower().split("@", 1)[0]
         if command == "/pos":
             return self._format_positions()
+        if command == "/check":
+            return self._handle_check(command_parts)
+        if command == "/position":
+            return self._handle_position(command_parts)
+        if command == "/plan":
+            return self._handle_plan(command_parts)
         if command == "/confirm":
             if len(parts) < 2:
                 return "用法: /confirm <id>"
@@ -69,7 +77,7 @@ class TelegramCommandProcessor:
             return self._prepare_stop(chat_id, parts)
         if command == "/note":
             return self._prepare_note(chat_id, parts)
-        return "未知命令。可用: /pos, /buy, /add, /trim, /sell, /stop, /note, /confirm"
+        return "未知命令。可用: /pos, /check, /position, /plan, /buy, /add, /trim, /sell, /stop, /note, /confirm"
 
     def _format_positions(self) -> str:
         positions = list_positions(self.db_path)
@@ -113,6 +121,40 @@ class TelegramCommandProcessor:
         ticker = parts[1].upper()
         note = parts[2] if len(parts) == 3 else " ".join(parts[2:])
         return self._add_pending(chat_id, "note", ticker, 0.0, 0.0, note)
+
+    def _handle_check(self, parts: list[str]) -> str:
+        if len(parts) != 2:
+            return "用法: /check TICKER"
+        response = analyze_ticker(self.config, parts[1].upper())
+        return format_analyst_response(response)
+
+    def _handle_position(self, parts: list[str]) -> str:
+        if len(parts) != 2:
+            return "用法: /position TICKER"
+        response = analyze_position(self.config, parts[1].upper())
+        return format_analyst_response(response)
+
+    def _handle_plan(self, parts: list[str]) -> str:
+        if len(parts) not in {5, 7}:
+            return "用法: /plan ACTION TICKER SHARES PRICE [stop STOP_PRICE]"
+        try:
+            action = parts[1].lower()
+            ticker = parts[2].upper()
+            shares = float(parts[3])
+            price = float(parts[4])
+            stop_price = None
+            if len(parts) == 7:
+                if parts[5].lower() != "stop":
+                    return "用法: /plan ACTION TICKER SHARES PRICE [stop STOP_PRICE]"
+                stop_price = float(parts[6])
+        except ValueError:
+            return "用法: /plan ACTION TICKER SHARES PRICE [stop STOP_PRICE]"
+        if action not in {"buy", "add", "trim", "sell"}:
+            return "用法: /plan ACTION TICKER SHARES PRICE [stop STOP_PRICE]"
+        if shares <= 0 or price <= 0 or (stop_price is not None and stop_price <= 0):
+            return "股数、价格和止损价必须大于 0。"
+        response = review_trade_plan(self.config, TradePlan(action, ticker, shares, price, stop_price))
+        return format_analyst_response(response)
 
     def _add_pending(self, chat_id: str, action: str, ticker: str, shares: float, price: float, note: str) -> str:
         pending_id = uuid4().hex[:6]

@@ -4,6 +4,7 @@ from pathlib import Path
 
 from quant_ai_system.config import load_config
 from quant_ai_system.portfolio_store import list_positions
+from quant_ai_system.interactive_analyst import AnalystResponse
 from quant_ai_system.telegram_commands import TelegramCommandProcessor
 
 
@@ -51,3 +52,54 @@ def test_malformed_trade_command_does_not_write(tmp_path: Path, monkeypatch) -> 
 
     assert "用法" in reply
     assert list_positions(db) == []
+
+
+def _fake_response(command: str, ticker: str, conclusion: str) -> AnalystResponse:
+    return AnalystResponse(
+        command=command,
+        ticker=ticker,
+        conclusion=conclusion,
+        sections={"技术/数据": ["ok"], "新闻/事件": ["ok"], "持仓/组合影响": ["ok"], "LOTS/风控": ["ok"]},
+        intended_alpha="alpha",
+        unwanted_risk="risk",
+        retained_exposure="exposure",
+        binding_constraint="constraint",
+        liquidity_exit_posture="exit",
+        supervisor="local_rule",
+    )
+
+
+def test_check_command_routes_to_interactive_analyst(tmp_path: Path, monkeypatch) -> None:
+    processor = _processor(tmp_path, monkeypatch, [])
+    monkeypatch.setattr("quant_ai_system.telegram_commands.analyze_ticker", lambda config, ticker: _fake_response("CHECK", ticker, "watch"))
+    monkeypatch.setattr("quant_ai_system.telegram_commands.format_analyst_response", lambda response: f"{response.command}:{response.ticker}:{response.conclusion}")
+
+    assert processor.handle_text("123", "/check MRVL") == "CHECK:MRVL:watch"
+
+
+def test_position_command_routes_to_interactive_analyst(tmp_path: Path, monkeypatch) -> None:
+    processor = _processor(tmp_path, monkeypatch, [])
+    monkeypatch.setattr("quant_ai_system.telegram_commands.analyze_position", lambda config, ticker: _fake_response("POSITION", ticker, "protect_profit"))
+    monkeypatch.setattr("quant_ai_system.telegram_commands.format_analyst_response", lambda response: f"{response.command}:{response.ticker}:{response.conclusion}")
+
+    assert processor.handle_text("123", "/position SNXX") == "POSITION:SNXX:protect_profit"
+
+
+def test_plan_command_does_not_create_pending_confirmation(tmp_path: Path, monkeypatch) -> None:
+    processor = _processor(tmp_path, monkeypatch, [])
+    monkeypatch.setattr("quant_ai_system.telegram_commands.review_trade_plan", lambda config, plan: _fake_response("PLAN", plan.ticker, "approve_small_probe"))
+    monkeypatch.setattr("quant_ai_system.telegram_commands.format_analyst_response", lambda response: f"{response.command}:{response.ticker}:{response.conclusion}")
+
+    reply = processor.handle_text("123", "/plan buy INTC 5 135 stop 128")
+
+    assert reply == "PLAN:INTC:approve_small_probe"
+    assert processor.pending == {}
+
+
+def test_malformed_plan_command_returns_usage(tmp_path: Path, monkeypatch) -> None:
+    processor = _processor(tmp_path, monkeypatch, [])
+
+    reply = processor.handle_text("123", "/plan buy INTC")
+
+    assert "用法" in reply
+    assert processor.pending == {}

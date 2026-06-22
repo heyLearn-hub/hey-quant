@@ -318,7 +318,25 @@ bin/quant-ai-local run --config config/default.yaml --out outputs/latest_report.
 
 Telegram 会按行动优先输出：数据阻断、当前持仓行动、仓位风险、可执行股票候选、战术 ETF 候选、新闻风险和完整报告链接。
 
-如果 Windows Docker 的 `quant-ai-web` 常驻服务正在运行，并且 `.env` 配好了 `TELEGRAM_BOT_TOKEN` 与 `TELEGRAM_CHAT_ID`，系统会启用 Telegram 远程持仓指令。写入类指令必须二次确认，不会自动下单：
+如果 Windows Docker 的 `quant-ai-web` 常驻服务正在运行，并且 `.env` 配好了 `TELEGRAM_BOT_TOKEN` 与 `TELEGRAM_CHAT_ID`，系统会启用 Telegram 主动分析和远程持仓指令。
+
+只读分析指令不会修改 SQLite，不会创建 pending confirmation，也不会自动下单：
+
+```text
+/check TICKER
+/position TICKER
+/plan ACTION TICKER SHARES PRICE [stop STOP_PRICE]
+```
+
+示例：
+
+```text
+/check MRVL
+/position SNXX
+/plan buy INTC 5 135 stop 128
+```
+
+写入类指令必须二次确认，不会自动下单：
 
 ```text
 /pos
