@@ -8,6 +8,7 @@ from quant_ai_system.config import load_config
 from quant_ai_system.emailer import send_summary_email
 from quant_ai_system.engine import run_system
 from quant_ai_system.data import check_provider_data, get_market_data, make_sample_market_data
+from quant_ai_system.data_quality import data_quality_exit_code, evaluate_data_quality, format_data_quality_summary, write_data_quality_report
 from quant_ai_system.factors import run_factor_experiment, write_factor_report
 from quant_ai_system.monitor import format_monitor_status, run_monitor_once
 from quant_ai_system.portfolio_store import list_supervisor_decision_logs, list_symbol_aliases, upsert_symbol_alias
@@ -75,6 +76,11 @@ def _build_parser() -> argparse.ArgumentParser:
     data_check.add_argument("--config", default="config/default.yaml")
     data_check.add_argument("--provider", default="fmp", choices=["fmp", "yfinance", "stooq"])
     data_check.add_argument("--tickers", default="", help="Comma-separated ticker override. Defaults to configured universe plus benchmarks.")
+
+    data_quality = sub.add_parser("data-quality")
+    data_quality.add_argument("--config", default="config/default.yaml")
+    data_quality.add_argument("--provider", default="fmp", choices=["fmp", "yfinance", "stooq"])
+    data_quality.add_argument("--out", default="")
 
     news_check = sub.add_parser("news-check")
     news_check.add_argument("--config", default="config/default.yaml")
@@ -181,6 +187,14 @@ def main(argv: list[str] | None = None) -> int:
             status = "OK" if item.ok else "CHECK"
             print(f"{status}\t{item.ticker}\trows={item.rows}\tfirst={first}\tlast={last}\tclose={close}\t{item.message}")
         return 1 if failures else 0
+
+    if args.command == "data-quality":
+        report = evaluate_data_quality(config, provider=args.provider)
+        print(format_data_quality_summary(report))
+        if args.out:
+            out = write_data_quality_report(report, args.out)
+            print(f"Data quality report: {out}")
+        return data_quality_exit_code(report)
 
     if args.command == "news-check":
         if args.tickers.strip():

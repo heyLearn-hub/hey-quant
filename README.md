@@ -146,6 +146,9 @@ bin/quant-ai-local backtest --config config/default.yaml --offline-sample
 # 因子实验报告
 bin/quant-ai-local factor-test --config config/default.yaml --offline-sample --out outputs/factor_report.html
 
+# 结合持仓、alias、股票池和 FMP 覆盖，生成数据质量闸门报告
+bin/quant-ai-local data-quality --config config/default.yaml --out outputs/data_quality_report.html
+
 # 生成报告并发送 Telegram
 bin/quant-ai-local run --config config/default.yaml --out outputs/latest_report.html --send-telegram
 
@@ -156,6 +159,7 @@ bin/quant-ai-local supervisor-log --config config/default.yaml --limit 20
 ## 模块
 
 - `data`: yfinance 主数据源，Stooq 兜底，统一成复权 OHLCV。
+- `data_quality`: 数据质量闸门，检查真实持仓、股票池、基准和杠杆 ETF 的 provider 覆盖、alias、可交易状态和 Public Equity 风险字段。
 - `indicators`: 均线、动量、RSI、ATR、相对强度、波动率、回撤和趋势斜率。
 - `quality`: “股神式”质量股覆盖层，按护城河、现金流、资本回报、资产负债表和估值纪律给手工质量分。
 - `signals`: 技术分和质量分综合评分，默认技术 65%、质量 35%。
@@ -265,6 +269,14 @@ data:
 ```bash
 bin/quant-ai-local data-check --config config/default.yaml --provider fmp
 ```
+
+生成可执行信号前的数据质量闸门报告：
+
+```bash
+bin/quant-ai-local data-quality --config config/default.yaml --provider fmp --out outputs/data_quality_report.html
+```
+
+`data-check` 只检查 provider 原始覆盖；`data-quality` 会额外纳入真实持仓、alias、股票/ETF/杠杆 ETF 分类和 Public Equity 风险字段。任何 `blocked` 或持仓 `data_fix_required` 都不能作为买入/加仓依据。
 
 验证 FMP 新闻覆盖：
 

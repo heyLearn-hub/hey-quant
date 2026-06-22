@@ -78,6 +78,7 @@ Goal: make real positions and watchlist symbols reliable before trusting signals
 Deliverables:
 
 - FMP coverage report for configured universe, leveraged ETFs, benchmarks, and open positions.
+- `data-quality` CLI gate that combines provider coverage, open positions, symbol aliases, asset class, and Public Equity risk fields.
 - Alias repair queue for broker symbols that are not covered by FMP/yfinance/Stooq.
 - ETF and leveraged ETF coverage validation.
 - Adjusted daily-price validation for split/dividend handling.
@@ -87,6 +88,7 @@ Exit criteria:
 - No open position is silently ignored.
 - Missing data produces `data_fix_required`, not a trading signal.
 - Any alias mapping preserves the broker symbol in reports while using the mapped data symbol for pricing.
+- CLI exits non-zero when a blocked ticker or open-position data repair issue would make live signals unsafe.
 
 ### Stage 4: Action Quality And Public Equity Risk Discipline
 

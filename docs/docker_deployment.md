@@ -62,9 +62,10 @@ Validate FMP coverage before relying on live signals:
 
 ```bash
 docker compose --profile job run --rm quant-ai-job data-check --config config/default.yaml --provider fmp
+docker compose --profile job run --rm quant-ai-job data-quality --config config/default.yaml --provider fmp --out outputs/data_quality_report.html
 ```
 
-The command exits with code `0` only when all checked tickers have enough recent rows. Missing or stale tickers should be fixed before treating signals as live.
+`data-check` validates raw provider coverage. `data-quality` is the production gate: it also checks open positions, aliases, asset class, and Public Equity risk fields. The data-quality command exits non-zero when blocked data or open-position data repair would make live signals unsafe.
 
 Validate FMP news coverage for candidate or held tickers:
 
